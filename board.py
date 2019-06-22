@@ -1,5 +1,24 @@
 import numpy as np
 
+def test():
+	b = Board()
+	while True:
+		print(b)
+		cmd = input("= ")
+		tokens = cmd.split()
+		if tokens[0] == "play":
+			if   tokens[1] == "B": pla = Board.BLACK
+			elif tokens[1] == "W": pla = Board.WHITE
+			else:
+				print("Incorrect Command")
+				continue
+			i, j =stdToCoord(tokens[2])
+			try:
+				b.playStone(i, j, pla)
+			except:
+				print("Illegal move")
+		#print("Incorrect Command")
+
 def validCoordinates(i, j, size=19):
 	"""Return whether (i, j) are valid coordinates or not."""
 	if i >= size or j >= size: return False
@@ -9,14 +28,14 @@ def validCoordinates(i, j, size=19):
 def coordToStd(i, j, size=19):
 	"""Convert a move from its coordinates format (i, j) to standard
 	format (e.g C15)"""
-	letter = Board.ROWS[i]
-	num = size - j
+	letter = Board.ROWS[j]
+	num = size - i
 	return letter + str(num)
 
-def stdTocoord(txt, size=19):
+def stdToCoord(txt, size=19):
 	"""Convert a move from its standard format to coordinates"""
-	i = Board.ROWS.index(txt[0])
-	j = size - int(txt[1:])
+	j = Board.ROWS.index(txt[0])
+	i = size - int(txt[1:])
 	return i, j
 
 class Board:
@@ -31,6 +50,7 @@ class Board:
 	WHITE = 2
 	BSIGN = 1
 	WSIGN = -1
+	PASS = -1, -1
 
 	getOpponent = lambda c: Board.WHITE if c == Board.BLACK else Board.BLACK
 	getAdj = lambda i, j: [(i+1, j), (i-1, j), (i, j+1), (i, j-1)]  
@@ -40,7 +60,7 @@ class Board:
 
 	def __init__(self, size=19):
 		self.size = size
-		self.stones = np.zeros(shape=(size, size))
+		self.stones = np.zeros(shape=(size, size), dtype="int8")
 		self.heat = np.zeros(shape=(size,size))
 		self.turn = Board.BLACK
 
@@ -75,6 +95,11 @@ class Board:
 		"""Hard-set a stone at coordinates (i, j)"""
 		self.stones[i][j] = pla
 
+	def setSequence(self, moves):
+		"""Hard stones on the board"""
+		for pla, i, j in moves:
+			self.setStone(i, j, pla)
+
 	def playStone(self, i, j, pla=None):
 		"""Play a stone a coordinates (i, j)"""
 		if not pla: pla = self.turn
@@ -84,9 +109,9 @@ class Board:
 		cap = self.captured(i, j, pla)
 		for chain in cap:
 			for u, v in chain:
-				self.stone[u][v] = Board.EMPTY
+				self.stones[u][v] = Board.EMPTY
 		self.setStone(i, j, pla)
-		self.turn = self.getOpponent(pla)
+		self.turn = Board.getOpponent(pla)
 
 	def captured(self, i, j, pla):
 		"""Return the list of captured chains by move i, j"""
@@ -113,8 +138,9 @@ class Board:
 
 	def isLegal(self, i, j, pla):
 		"""Return True if move (i, j) is legal, and False otherwise."""
+		# FIXME : no KO managment
 		if not validCoordinates(i, j, self.size): return False
-		if self.stones[i][j] == Board.EMPTY: return False
+		if self.stones[i][j] != Board.EMPTY: return False
 		cap = self.captured(i, j, pla)
 		iss = self.isSuicideMove(i, j, pla)
 		if cap == [] and iss: return False
@@ -128,8 +154,9 @@ class Board:
 		adj = Board.getAdj(i, j)
 		for u, v in adj:
 			if not validCoordinates(u, v, self.size): continue
-			if self.stones[u][v] == Board.EMPTY: continue
-			num ++ 1
+			if self.stones[u][v] != Board.EMPTY: continue
+			num += 1
+		return num
 
 	def chainLiberties(self, i, j):
 		"""Return the number of liberties of the group at (i, j)"""
@@ -175,3 +202,26 @@ class Board:
 
 		return groups
 
+	def __repr__(self):
+		size = self.size
+		txt = "  "
+		for i in range(size):
+			txt += " " + Board.ROWS[i]
+		txt += "\n"
+		for row in range(size):
+			txt += "{:2}".format(size-row)
+			for col in range(size):
+				if   self.stones[row][col] == Board.EMPTY: txt += " ."
+				elif self.stones[row][col] == Board.BLACK: txt += " X"
+				elif self.stones[row][col] == Board.WHITE: txt += " O"
+				else : txt += " ?"
+			txt += "\n"
+		return txt	
+
+	# miscellaneous
+
+	def render_seq(self, moves):
+		"""Render a sequence of moves"""
+		for pla, i, j in moves:
+			self.playStone(i, j, pla)
+			print(self)
