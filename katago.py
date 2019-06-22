@@ -35,7 +35,7 @@ def parseLine(line):
 			pv = []
 			i, tok = i+1, txt[i+1]
 			while tok != "info" and tok != "ownership":
-				pv.append(stringToMove(tok))
+				pv.append(stdToCoord(tok))
 				i, tok = i+1, txt[i+1]
 			infos.append((visits, winrate, scoreMean, scoreStDev, pv))			 
 		
@@ -65,7 +65,7 @@ class KataGo:
 	STDMODEL = "../KataGo/cpp/models/g103-b6c96-s103408384-d26419149.txt.gz"
 	CONFIG = "gtp_analysis.cfg"
 	THINKING_TIME = 1000 # in centiseconds
-	ANALYSIS_CMD = "kata-analyze interval {} ownership true"
+	ANALYSIS_CMD = "kata-analyze interval {} ownership true"
 	ANALYSIS_DIR = "analysis"
 
 	def __init__(self, config=None, model=None):
