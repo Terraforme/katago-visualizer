@@ -2,6 +2,9 @@
 
 import sgffiles
 from board import *
+from render import run
+from katago import KataGo
+
 
 if __name__ == "__main__":
 	path = input("load: ")
@@ -9,3 +12,13 @@ if __name__ == "__main__":
 	board = Board(size=gdata.size)
 	board.setSequence(setup)
 	board.render_seq(moves)
+	
+	kata = KataGo()
+	kata.setBoardsize(gdata.size)
+	kata.setKomi(gdata.komi)
+
+
+
+	kata.close()
+	print("Everything went well !")
+	# run()
