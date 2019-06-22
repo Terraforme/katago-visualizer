@@ -129,6 +129,12 @@ class KataGo:
 		"""Close KataGo"""
 		self.sendCommand("quit")
 
+	def playSeq(self, moves, clear=False):
+		"""Play a sequence of moves"""
+		if clear: self.clear()
+		for pla, i, j in moves:
+			self.playCoord(pla, i, j)
+
 
 	# More serious commands
 
@@ -140,7 +146,7 @@ class KataGo:
 
 	def waitOutput(self):
 		"""Wait for KataGo to output something"""
-		line = self.stdout.readline().decode()
+		line = self.pid.stdout.readline().decode()
 		return line
 
 	def waitAnalysis(self, stop=True):

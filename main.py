@@ -16,9 +16,10 @@ if __name__ == "__main__":
 	kata = KataGo()
 	kata.setBoardsize(gdata.size)
 	kata.setKomi(gdata.komi)
-
-
-
+	kata.playSeq(setup)
+	kata.playSeq(moves[:20])
+	kata.analyse()
+	print(kata.waitAnalysis())
 	kata.close()
 	print("Everything went well !")
 	# run()
