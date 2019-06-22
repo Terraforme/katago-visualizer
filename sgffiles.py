@@ -16,9 +16,8 @@ class GameData:
 
 def load_sgf_moves(path):
 	"""Load a sgf file and return (gamedata, setup, moves, rules) """
-	sgf_file = open(path, "rb")
-	content = sgf_file.read()
-	sgf_file.close()
+	with open(path, "rb") as sgf_file:
+		content = sgf_file.read()
 
 	game = Sgf.Sgf_game.from_bytes(content)
 	size = game.get_size()
@@ -153,4 +152,3 @@ def load_sgf_moves(path):
 
 	gdata = GameData(size, bname, wname, brank, wrank, komi)
 	return gdata, setup, moves, rules
- 

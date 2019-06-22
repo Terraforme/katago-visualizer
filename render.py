@@ -1,32 +1,224 @@
 import sys
 import ctypes
 from sdl2 import *
-import sdl2.sdlgfx as sdlgfx
+from sdl2.sdlttf import *
+import sdl2.sdlgfx as gfx
+from board import Board
 
-WIDTH = 700
-HEIGHT = 600
+#
+#  Board layout parameters
+#
 
-def run():
+# Cell size, should be even because the intersection is 1px wide.
+CELL_SIZE = 33
+# Margin around the goban, in each four directions
+MARGIN = 40
+# Height of the control area at the bottom
+CONTROLS = 100
+# Stone radius, should be less than CELL_SIZE // 2
+STONE_RADIUS = 14
+
+# The following are calculated values and not parameters:
+
+# Window width
+WIDTH = MARGIN + 19 * CELL_SIZE + MARGIN
+# Window height
+HEIGHT = MARGIN + 19 * CELL_SIZE + MARGIN + CONTROLS
+
+#
+#  Basic colors
+#
+
+WHITE = (255, 255, 255, 255)
+BLACK = (0, 0, 0, 255)
+GRAY  = lambda x: (x, x, x, 255)
+
+#
+#  Global data
+#
+
+# SDL Renderer
+renderer = None
+# Font for rendering, loaded from a TTF.
+font = None
+
+# Row names
+ROWS = "ABCDEFGHJKLMNOPQRST"
+
+#
+#  Coordinate abstraction
+#  The following functions calculate coordinates/
+#
+
+# Intersection coordinates. Rows and columns are counted from 1 to 19.
+def inter(row, col):
+	half = (CELL_SIZE + 1) // 2
+	x = MARGIN + half + CELL_SIZE * (row - 1)
+	y = MARGIN + half + CELL_SIZE * (col - 1)
+	return (x, y)
+
+# The rectangle around an intersection.
+def cell_rect(row, col):
+	half = (CELL_SIZE + 1) // 2
+	x, y = inter(row, col)
+	return (x - half, y - half, CELL_SIZE, CELL_SIZE)
+
+#
+#  Short drawing functions
+#  These functions have implicit renderer, font, and wrap SDL_Rect and
+#  SDL_Color arguments.
+#
+
+# Clears window.
+def clear(color):
+	SDL_SetRenderDrawColor(renderer, *color)
+	SDL_RenderClear(renderer)
+
+# Fills a rectangle.
+def fillrect(x, y, width, height, color):
+	SDL_SetRenderDrawColor(renderer, *color)
+	SDL_RenderFillRect(renderer, SDL_Rect(x, y, width, height))
+
+# Draws a line.
+def line(x1, y1, x2, y2, color):
+	SDL_SetRenderDrawColor(renderer, *color)
+	SDL_RenderDrawLine(renderer, x1, y1, x2, y2)
+
+# Renders text.
+# The alignment of the string is specified with the two last parameters:
+# - align_x can be "left", "center" or "right"
+# - align_y can be "top", "center" or "bottom"
+def text(x, y, string, color, align_x="center", align_y="center"):
+	string = bytes(string, "utf8")
+	surface = TTF_RenderText_Blended(font, string, SDL_Color(*color))
+	texture = SDL_CreateTextureFromSurface(renderer, surface)
+
+	w = surface.contents.w
+	h = surface.contents.h
+
+	if align_x == "center":
+		x -= w // 2
+	if align_x == "right":
+		x -= w
+	if align_y == "center":
+		y -= h // 2
+	if align_y == "bottom":
+		y -= h
+
+	SDL_RenderCopy(renderer, texture, None, SDL_Rect(x, y, w, h))
+	SDL_FreeSurface(surface)
+	SDL_DestroyTexture(texture)
+
+# Draws a circle, because gfx's filledCircle is terrible.
+def circle(cx, cy, radius, color):
+	SDL_SetRenderDrawColor(renderer, *color)
+
+	x = 0
+	y = radius
+	m = 5 - 4 * radius
+
+	while x <= y:
+		line(cx - x, cy + y, cx + x, cy + y, color)
+		line(cx - y, cy + x, cx + y, cy + x, color)
+		line(cx - x, cy - y, cx + x, cy - y, color)
+		line(cx - y, cy - x, cx + y, cy - x, color)
+
+		if m > 0:
+			y -= 1
+			m -= 8 * y
+		x += 1
+		m += 8 * x + 4
+
+# Draws a stone. The owner can be either "black" or "white".
+def stone(x, y, owner):
+	main, border = (BLACK, WHITE) if owner == "black" else (WHITE, BLACK)
+	r = STONE_RADIUS
+
+	if owner == "white":
+			circle(x, y, r, border)
+
+	circle(x, y, r-2, main)
+	gfx.aacircleRGBA(renderer, x, y, r-2, *main)
+	gfx.aacircleRGBA(renderer, x, y, r-1, *border)
+	gfx.aacircleRGBA(renderer, x, y, r, *border)
+
+#
+#  Board rendering function
+#
+
+def render(board):
+	clear(WHITE)
+	fillrect(0, HEIGHT - CONTROLS + 1, WIDTH, CONTROLS, GRAY(192))
+
+	text(WIDTH // 2, HEIGHT - CONTROLS // 2, "KataGo Analyzer", BLACK)
+
+	# Heat map
+	for row in range(1, 20):
+		for col in range(1, 20):
+			fillrect(*cell_rect(row, col), GRAY(240))
+
+	for i in range(1, 20):
+		line(*inter(1, i), *inter(19, i), GRAY(128))
+		line(*inter(i, 1), *inter(i, 19), GRAY(128))
+
+	for i in [4, 10, 15]:
+		for j in [4, 10, 15]:
+			x, y = inter(i, j)
+			circle(x, y, 3, GRAY(128))
+
+	line(*inter(1, 1),  *inter(1, 19),  BLACK)
+	line(*inter(1, 19), *inter(19, 19), BLACK)
+	line(*inter(1, 1),  *inter(19, 1),  BLACK)
+	line(*inter(19, 1), *inter(19, 19), BLACK)
+
+	# Stones
+	for row in range(1, 20):
+		for col in range(1, 20):
+			st = board.stones[col - 1][row - 1]
+
+			if st == Board.BLACK:
+				stone(*inter(row, col), "black")
+			elif st == Board.WHITE:
+				stone(*inter(row, col), "white")
+
+	for i in range(1, 20):
+		x, y = inter(i, 1)
+		text(x, y - 24, ROWS[i-1], BLACK, align_x="center", align_y="bottom")
+		x, y = inter(i, 19)
+		text(x, y + 24, ROWS[i-1], BLACK, align_x="center", align_y="top")
+		x, y = inter(1, i)
+		text(x - 32, y, str(i), BLACK, align_x="center", align_y="center")
+		x, y = inter(19, i)
+		text(x + 32, y, str(i), BLACK, align_x="center", align_y="center")
+
+	SDL_RenderPresent(renderer)
+
+def run(board):
 
 	SDL_Init(SDL_INIT_VIDEO)
+	TTF_Init()
 
-	window = SDL_CreateWindow("KataGo Analyser".encode(), 
-		SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 
+	global font
+	global renderer
+
+	window = SDL_CreateWindow("KataGo Analyzer".encode(),
+		SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
 		WIDTH, HEIGHT, SDL_WINDOW_SHOWN)
 	renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED)
+	font = TTF_OpenFont(b"DejaVuSans.ttf", 13)
+
+	SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, b'1')
 
 	running = True
 	event = SDL_Event()
 	while running:
 		# Event loop
-		while SDL_PollEvent(ctypes.byref(event)) != 0:
+		while SDL_PollEvent(event) != 0:
 			if event.type == SDL_QUIT:
 				running = False
 				break
 		# Rendering
-		SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255)
-		SDL_RenderClear(renderer)
-		SDL_RenderPresent(renderer);
+		render(board)
 
 	SDL_DestroyRenderer(renderer)
 	SDL_DestroyWindow(window)

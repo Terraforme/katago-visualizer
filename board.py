@@ -42,7 +42,7 @@ class Board:
 	"""Board for the game of Go
 
 	Goban is modelised using a N*N matrix (it is not linearised).
-	Coordinate (i, j) is the i-th intersection counting from left to write
+	Coordinate (i, j) is the i-th intersection counting from left to right
 	and j-th one from top to bottom."""
 
 	EMPTY = 0
@@ -53,7 +53,7 @@ class Board:
 	PASS = -1, -1
 
 	getOpponent = lambda c: Board.WHITE if c == Board.BLACK else Board.BLACK
-	getAdj = lambda i, j: [(i+1, j), (i-1, j), (i, j+1), (i, j-1)]  
+	getAdj = lambda i, j: [(i+1, j), (i-1, j), (i, j+1), (i, j-1)]
 	SIGNSWITCH = lambda s: - s
 
 	ROWS = "ABCDEFGHJKLMNOPQRST"
@@ -103,7 +103,7 @@ class Board:
 	def playStone(self, i, j, pla=None):
 		"""Play a stone a coordinates (i, j)"""
 		if not pla: pla = self.turn
-		if not self.isLegal(i, j, pla): 
+		if not self.isLegal(i, j, pla):
 			raise(Exception("Move {} is illegal".format(
 				coordToStd(i, j, self.size))))
 		cap = self.captured(i, j, pla)
@@ -122,7 +122,7 @@ class Board:
 		for u, v in adj:
 			if not validCoordinates(u, v, self.size): continue
 			if self.stones[u][v] != adv: continue
-			
+
 			if self.chainLiberties(u, v) == 0:
 				cap.append(self.getChain(u, v))
 		self.setStone(i, j, Board.EMPTY)
@@ -172,20 +172,20 @@ class Board:
 		color = self.stones[i][j]
 		chain = []
 		if color == Board.EMPTY: return []
-		
+
 		def getChain_aux(i, j):
 			seen[i][j] = True
 			if color != self.stones[i][j]: return None
-			
+
 			chain.append((i,j))
 			adj = Board.getAdj(i, j)
 			for u, v in adj:
 				if validCoordinates(u, v, self.size) and not seen[u][v]:
 					getChain_aux(u, v)
-				 
+
 		getChain_aux(i, j)
 		return chain
-	
+
 	def getGroups(self):
 		"""Return the list of all groups"""
 		N = self.size
@@ -216,7 +216,7 @@ class Board:
 				elif self.stones[row][col] == Board.WHITE: txt += " O"
 				else : txt += " ?"
 			txt += "\n"
-		return txt	
+		return txt
 
 	# miscellaneous
 
