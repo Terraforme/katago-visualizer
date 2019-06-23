@@ -205,9 +205,9 @@ def render(board):
 		x, y = inter(i, 19)
 		text(x, y + 24, ROWS[i-1], BLACK, align_x="center", align_y="top")
 		x, y = inter(1, i)
-		text(x - 32, y, str(i), BLACK, align_x="center", align_y="center")
+		text(x - 32, y, str(20-i), BLACK, align_x="center", align_y="center")
 		x, y = inter(19, i)
-		text(x + 32, y, str(i), BLACK, align_x="center", align_y="center")
+		text(x + 32, y, str(20-i), BLACK, align_x="center", align_y="center")
 
 	SDL_RenderPresent(renderer)
 
