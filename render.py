@@ -9,9 +9,9 @@ from board import Board
 #  Board layout parameters
 #
 
-# Cell size, should be even because the intersection is 1px wide.
+# Cell size, should be odd because the intersection is 1px wide.
 CELL_SIZE = 33
-# Margin around the goban, in each four directions
+# Margin around the goban, in all four directions
 MARGIN = 40
 # Height of the control area at the bottom
 CONTROLS = 100
@@ -47,7 +47,7 @@ ROWS = "ABCDEFGHJKLMNOPQRST"
 
 #
 #  Coordinate abstraction
-#  The following functions calculate coordinates/
+#  The following functions calculate coordinates.
 #
 
 # Intersection coordinates. Rows and columns are counted from 1 to 19.
@@ -211,12 +211,14 @@ def run(board):
 
 	running = True
 	event = SDL_Event()
+
 	while running:
 		# Event loop
-		while SDL_PollEvent(event) != 0:
-			if event.type == SDL_QUIT:
-				running = False
-				break
+		SDL_WaitEvent(event)
+		if event.type == SDL_QUIT:
+			running = False
+			break
+
 		# Rendering
 		render(board)
 
