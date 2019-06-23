@@ -1,10 +1,12 @@
 import sys
 import ctypes
+import sgffiles
+from katago import KataGo
 from sdl2 import *
 from sdl2.sdlttf import *
 import sdl2.sdlgfx as gfx
 from board import Board
-
+import time
 #
 #  Board layout parameters
 #
@@ -24,6 +26,8 @@ STONE_RADIUS = 10
 WIDTH = MARGIN + 19 * CELL_SIZE + MARGIN
 # Window height
 HEIGHT = MARGIN + 19 * CELL_SIZE + MARGIN + CONTROLS
+
+FPS = 30
 
 #
 #  Basic colors
@@ -207,7 +211,11 @@ def render(board):
 
 	SDL_RenderPresent(renderer)
 
-def run(board, katago):
+def run():
+
+	# Asking the user to load a game
+	path = sys.argv[1] if len(sys.argv) > 1 else input("load: ")
+	gdata, setup, moves, rules = sgffiles.load_sgf_moves(path)
 
 	SDL_Init(SDL_INIT_VIDEO)
 	TTF_Init()
@@ -223,10 +231,19 @@ def run(board, katago):
 
 	SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, b'1')
 
-	running = True
-	event = SDL_Event()
+	# Creating SDL_Events for Katago
+	SDL_KATAGO = SDL_RegisterEvents(1)
 
-	katago.analyse(ttime=100)
+	# Initialise board & katago
+	board = Board(size=gdata.size)
+	kata = KataGo(SDL_KATAGO)
+	kata.setBoardsize(gdata.size)
+	kata.setKomi(gdata.komi)
+
+	running = True
+	event = SDL_Event()	
+	
+	kata.analyse(ttime=100)
 
 	while running:
 		# Event loop
@@ -235,14 +252,16 @@ def run(board, katago):
 		if event.type == SDL_QUIT:
 			running = False
 			break
+		elif event.type == SDL_KATAGO:
+			if kata.lastAnalyse:
+				infos, heatInfos = kata.lastAnalyse
+				board.loadHeatFromArray(heatInfos)
 
-		# Rendering
-		infos, heatInfos = katago.getAnalysis()
-		if infos != []: 
-			board.loadHeatFromArray(heatInfos)
 		render(board)
 
-	katago.close()
+	print("Closing KataGo")
+	kata.close()
+	print("Katago closed, closing everything else")
 	SDL_DestroyRenderer(renderer)
 	SDL_DestroyWindow(window)
 	SDL_Quit()

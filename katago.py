@@ -1,6 +1,6 @@
 import sys
+from sdl2 import *
 from threading import Thread
-from queue import Queue, Empty
 import time
 import subprocess
 import os
@@ -57,9 +57,12 @@ def parseLine(line):
 
 # Thanks stackoverflow ! 
 # https://stackoverflow.com/questions/375427/non-blocking-read-on-a-subprocess-pipe-in-python
-def enqueue_output(out, queue):
+def enqueue_output(out, katago):
 	for line in iter(out.readline, b''):
-		queue.put(line)
+		katago.lastAnalyse = parseLine(line.decode())
+		ev = SDL_Event()
+		ev.type = katago.eventID
+		SDL_PushEvent(ev)
 	out.close()
 
 class KataGo:
@@ -78,7 +81,7 @@ class KataGo:
 	ANALYSIS_CMD = "kata-analyze interval {} ownership true"
 	ANALYSIS_DIR = "analysis"
 
-	def __init__(self, config=None, model=None):
+	def __init__(self, eventID, config=None, model=None):
 		
 		if not config: config = KataGo.CONFIG
 		if not model: model = KataGo.STDMODEL
@@ -90,11 +93,13 @@ class KataGo:
 		if not self.pid: # TODO: check the doc of subprocess.Popen
 			raise Exception("Error when starting KataGo")
 
+		self.lastAnalyse = None
+		self.eventID = eventID
+
 		self.stdin = self.pid.stdin.fileno()
 		self.stdout = self.pid.stdout.fileno()
 
-		self.queue = Queue()
-		self.thread = Thread(target=enqueue_output, args=(self.pid.stdout, self.queue))
+		self.thread = Thread(target=enqueue_output, args=(self.pid.stdout, self))
 		self.thread.daemon = True
 		self.thread.start()
 
