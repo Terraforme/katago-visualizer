@@ -122,7 +122,7 @@ class KataGo:
 		cmd = "play {} {}".format(player[pla], txt)
 		self.sendCommand(cmd)
 
-	def playCoord(self, pla, i, j, size=19):
+	def playCoord(self, i, j, pla, size=19):
 		"""Play a stone at coordinates (i, j)"""
 		txt = coordToStd(i, j, size)
 		self.playStone(pla, txt)
@@ -153,7 +153,7 @@ class KataGo:
 		"""Play a sequence of moves"""
 		if clear: self.clear()
 		for pla, i, j in moves:
-			self.playCoord(pla, i, j)
+			self.playCoord(i, j, pla)
 
 
 	# More serious commands

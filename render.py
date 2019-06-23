@@ -179,8 +179,8 @@ def render(board):
 		line(*inter(1, i), *inter(19, i), GRAY(128))
 		line(*inter(i, 1), *inter(i, 19), GRAY(128))
 
-	for i in [4, 10, 15]:
-		for j in [4, 10, 15]:
+	for i in [4, 10, 16]:
+		for j in [4, 10, 16]:
 			x, y = inter(i, j)
 			circle(x, y, 3, GRAY(128))
 
@@ -216,6 +216,8 @@ def run():
 	# Asking the user to load a game
 	path = sys.argv[1] if len(sys.argv) > 1 else input("load: ")
 	gdata, setup, moves, rules = sgffiles.load_sgf_moves(path)
+	movID = 0
+	movnum = len(moves)
 
 	SDL_Init(SDL_INIT_VIDEO)
 	TTF_Init()
@@ -240,6 +242,10 @@ def run():
 	kata.setBoardsize(gdata.size)
 	kata.setKomi(gdata.komi)
 
+	# Setting setup stones
+	board.setSequence(setup)
+	kata.playSeq(setup)
+
 	running = True
 	event = SDL_Event()	
 	
@@ -256,6 +262,28 @@ def run():
 			if kata.lastAnalyse:
 				infos, heatInfos = kata.lastAnalyse
 				board.loadHeatFromArray(heatInfos)
+		elif event.type == SDL_KEYDOWN:
+			if event.key.keysym.sym == SDLK_RIGHT:
+				if movID >= movnum: pass
+				else:
+					kata.stop()
+					print(moves[movID])
+					pla, i, j = moves[movID]
+					board.playStone(i, j, pla)
+					kata.playCoord(i, j, pla)
+					movID += 1
+					kata.analyse(ttime=100)
+			if event.key.keysym.sym == SDLK_LEFT:
+				if movID <= 0: pass
+				else:
+					kata.stop()
+					board.clearStones()
+					board.setSequence(setup)
+					movID -= 1
+					for pla, i, j in moves[:movID]:
+						board.playStone(i, j, pla)
+					kata.undo()
+					kata.analyse(ttime=100)
 
 		render(board)
 

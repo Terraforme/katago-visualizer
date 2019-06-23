@@ -78,6 +78,12 @@ class Board:
 		self.stones = np.zeros(shape=(size, size))
 		self.heat = np.zeros(shape=(size,size))
 
+	def clearStones(self):
+		"""Clear stones only"""
+		size = self.size
+		self.stones = np.zeros(shape=(size, size))
+
+
 	def resize(self, size):
 		"""Clear the content of the board and resize it"""
 		self.size = size
