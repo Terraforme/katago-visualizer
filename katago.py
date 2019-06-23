@@ -60,9 +60,10 @@ def parseLine(line):
 def enqueue_output(out, katago):
 	for line in iter(out.readline, b''):
 		katago.lastAnalyse = parseLine(line.decode())
-		ev = SDL_Event()
-		ev.type = katago.eventID
-		SDL_PushEvent(ev)
+		if katago.lastAnalyse: # do not care if this is not relevant info
+			ev = SDL_Event()
+			ev.type = katago.eventID
+			SDL_PushEvent(ev)
 	out.close()
 
 class KataGo:

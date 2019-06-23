@@ -2,10 +2,11 @@ import sys
 import ctypes
 import sgffiles
 from katago import KataGo
+from board import Board, coordToStd
+from history import Node
 from sdl2 import *
 from sdl2.sdlttf import *
 import sdl2.sdlgfx as gfx
-from board import Board
 import time
 #
 #  Board layout parameters
@@ -36,6 +37,8 @@ FPS = 30
 WHITE = (255, 255, 255, 255)
 BLACK = (0, 0, 0, 255)
 GRAY  = lambda x: (x, x, x, 255)
+HINT_COLOR = (240, 240, 5, 255)
+PV_COLOR = (255, 0, 0, 255)
 HEAT_RED = (150, 25, 0, 255)
 HEAT_BLACK = (25, 25, 25, 255)
 def HEAT(x):
@@ -50,7 +53,6 @@ def HEAT(x):
 	b = int(x * mb + (1 - x) * 255)
 	return (r, g, b, 255)
 
-
 #
 #  Global data
 #
@@ -59,6 +61,7 @@ def HEAT(x):
 renderer = None
 # Font for rendering, loaded from a TTF.
 font = None
+tinyfont = None
 
 # Row names
 ROWS = "ABCDEFGHJKLMNOPQRST"
@@ -103,12 +106,19 @@ def line(x1, y1, x2, y2, color):
 	SDL_RenderDrawLine(renderer, x1, y1, x2, y2)
 
 # Renders text.
+# Size of font if specified with the tfont parameter.
+# - tfont can be "normal" or "tiny"
 # The alignment of the string is specified with the two last parameters:
 # - align_x can be "left", "center" or "right"
 # - align_y can be "top", "center" or "bottom"
-def text(x, y, string, color, align_x="center", align_y="center"):
+def text(x, y, string, color=BLACK, tfont="normal", align_x="center", align_y="center"):
+	
+	if tfont == "normal":
+		tfont = font
+	elif tfont == "tiny":
+		tfont = tinyfont
 	string = bytes(string, "utf8")
-	surface = TTF_RenderText_Blended(font, string, SDL_Color(*color))
+	surface = TTF_RenderText_Blended(tfont, string, SDL_Color(*color))
 	texture = SDL_CreateTextureFromSurface(renderer, surface)
 
 	w = surface.contents.w
@@ -160,11 +170,72 @@ def stone(x, y, owner):
 	gfx.aacircleRGBA(renderer, x, y, r-1, *border)
 	gfx.aacircleRGBA(renderer, x, y, r, *border)
 
+def circ_mark(x, y, owner):
+	main, border = (BLACK, WHITE) if owner == "black" else (WHITE, BLACK)
+	r = STONE_RADIUS // 2
+	gfx.aacircleRGBA(renderer, x, y, r, *border)
+
+def hint_stone(x, y, intensity=0.5, isFirst=False):
+	r, g, b, a = HINT_COLOR
+	a = int(255 * intensity)
+	main = r, g, b, a
+	border = PV_COLOR if isFirst else HINT_COLOR
+	
+	r = STONE_RADIUS
+	circle(x, y, r-2, main)
+	gfx.aacircleRGBA(renderer, x, y, r-2, *main)
+	gfx.aacircleRGBA(renderer, x, y, r-1, *border)
+	gfx.aacircleRGBA(renderer, x, y, r, *border)
+	if isFirst: gfx.aacircleRGBA(renderer, x, y, r+1, *border)
+
+# Adjust a string representing an integer to be 3 characters.
+# e.g 1028 becomes 1.0k
+# e.g 208512 becomes 0.2M
+def adjustStr(txt):
+	e = len(txt)
+	if e <= 2: return txt
+	if e == 3: return "0.{}k".format(txt[0])
+	if e == 4: return "{}.{}k".format(txt[0], txt[1])
+	if e == 5: return "{}{}k".format(txt[0], txt[1])
+	if e == 6: return "0.{}M".format(txt[0]) 
+	if e == 7: return "{}.{}M".format(txt[0], txt[1])
+	if e == 8: return "{}{}M".format(txt[0], txt[1])
+	if e == 9: return "0.{}G".format(txt[0]) 
+	else: return "Lolwut did you truly made this many visits ?"
+
+def hint_info(x, y, visits, score):
+	visitstr = str(visits)
+	if score < 0: scorestr = "+{:.0f}".format(-score)
+	else: scorestr = "-{:.0f}".format(score)
+	text(x, y-5, adjustStr(visitstr), tfont="tiny")
+	text(x, y+5, scorestr, tfont="tiny")
+
+#
+#  Hint rendering function
+#
+
+def render_hints(pv):
+
+	numVisits = 0
+	for visits, _, _, _, _ in pv:
+		numVisits += visits
+
+	isFirst = True
+	for visits, winrate, scoreMean, scoreStDev, moves in pv:
+		col, row = moves[0]
+		hint_stone(*inter(row+1, col+1), intensity=visits/numVisits, isFirst=isFirst)
+		hint_info(*inter(row+1, col+1), visits, scoreMean)
+		isFirst = False
 #
 #  Board rendering function
 #
 
-def render(board):
+def render(board, history):
+
+	# Getting informations
+	pv = history.getPV()
+	lmove = history.getLastMove()
+
 	clear(WHITE)
 	fillrect(0, HEIGHT - CONTROLS + 1, WIDTH, CONTROLS, GRAY(192))
 
@@ -199,6 +270,12 @@ def render(board):
 			elif st == Board.WHITE:
 				stone(*inter(row, col), "white")
 
+	# Mark last move
+	if lmove:
+		pla, col, row = lmove
+		owner = "black" if pla == Board.BLACK else "white"
+		circ_mark(*inter(row+1, col+1), owner)
+
 	for i in range(1, 20):
 		x, y = inter(i, 1)
 		text(x, y - 24, ROWS[i-1], BLACK, align_x="center", align_y="bottom")
@@ -208,6 +285,9 @@ def render(board):
 		text(x - 32, y, str(20-i), BLACK, align_x="center", align_y="center")
 		x, y = inter(19, i)
 		text(x + 32, y, str(20-i), BLACK, align_x="center", align_y="center")
+
+	# Rendering Hints
+	render_hints(pv)
 
 	SDL_RenderPresent(renderer)
 
@@ -223,6 +303,7 @@ def run():
 	TTF_Init()
 
 	global font
+	global tinyfont
 	global renderer
 
 	window = SDL_CreateWindow("KataGo Analyzer".encode(),
@@ -230,6 +311,7 @@ def run():
 		WIDTH, HEIGHT, SDL_WINDOW_SHOWN)
 	renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED)
 	font = TTF_OpenFont(b"DejaVuSans.ttf", 13)
+	tinyfont = TTF_OpenFont(b"DejaVuSans.ttf", 7)
 
 	SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, b'1')
 
@@ -239,18 +321,28 @@ def run():
 	# Initialise board & katago
 	board = Board(size=gdata.size)
 	kata = KataGo(SDL_KATAGO)
+	history = Node(kata)
 	kata.setBoardsize(gdata.size)
 	kata.setKomi(gdata.komi)
 
 	# Setting setup stones
-	board.setSequence(setup)
-	kata.playSeq(setup)
-
+	for pla, i, j in setup:
+		history.playMove(board, i, j, pla, analyse=False)
+	board = history.getCurrentBoard()
+	history = history.setRootHere()
+	
+	for pla, i, j in moves:
+		history.playMove(board, i, j, pla, transmit=False)
+	history.goToRoot()
+	board = history.getCurrentBoard()
+	
+	
 	running = True
 	event = SDL_Event()	
 	
 	kata.analyse(ttime=100)
 
+	render(board, history)
 	while running:
 		# Event loop
 		
@@ -261,31 +353,22 @@ def run():
 		elif event.type == SDL_KATAGO:
 			if kata.lastAnalyse:
 				infos, heatInfos = kata.lastAnalyse
+				if history.getTurn() == Board.WHITE: heatInfos = -heatInfos
+				history.updPV(infos)
 				board.loadHeatFromArray(heatInfos)
-		elif event.type == SDL_KEYDOWN:
+		elif event.type == SDL_KEYDOWN: # Keyboard
 			if event.key.keysym.sym == SDLK_RIGHT:
-				if movID >= movnum: pass
-				else:
-					kata.stop()
-					print(moves[movID])
-					pla, i, j = moves[movID]
-					board.playStone(i, j, pla)
-					kata.playCoord(i, j, pla)
-					movID += 1
-					kata.analyse(ttime=100)
-			if event.key.keysym.sym == SDLK_LEFT:
-				if movID <= 0: pass
-				else:
-					kata.stop()
-					board.clearStones()
-					board.setSequence(setup)
-					movID -= 1
-					for pla, i, j in moves[:movID]:
-						board.playStone(i, j, pla)
-					kata.undo()
-					kata.analyse(ttime=100)
+				history.setBoard(board) # save current board
+				board = history.goForward(transmit=True, analyse=True)
+			elif event.key.keysym.sym == SDLK_LEFT:
+				history.setBoard(board) # save current board
+				board = history.undo(transmit=True, analyse=True)
+			else: # for performance reasons
+				continue
+		else: # performances +++ 
+			continue
 
-		render(board)
+		render(board, history)
 
 	print("Closing KataGo")
 	kata.close()

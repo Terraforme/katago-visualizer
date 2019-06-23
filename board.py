@@ -1,4 +1,5 @@
 import numpy as np
+import random
 
 def test():
 	b = Board()
@@ -52,6 +53,13 @@ class Board:
 	WSIGN = -1
 	PASS = -1, -1
 
+	random.seed(159734862)
+	ZOBRIST = {0: [[0 for i in range(26)] for j in range(26)],
+	           1: [[random.getrandbits(64) for j in range(26)] for i in range(26)],
+	           2: [[random.getrandbits(64) for j in range(26)] for i in range(26)]}
+	ZOBRITSTURN = {0: 0, 1: 0, 2: random.getrandbits(64)}
+
+
 	getOpponent = lambda c: Board.WHITE if c == Board.BLACK else Board.BLACK
 	getAdj = lambda i, j: [(i+1, j), (i-1, j), (i, j+1), (i, j-1)]
 	SIGNSWITCH = lambda s: - s
@@ -59,30 +67,42 @@ class Board:
 	ROWS = "ABCDEFGHJKLMNOPQRST"
 
 	def __init__(self, size=19):
+		self.key = 0
 		self.size = size
 		self.stones = np.zeros(shape=(size, size), dtype="int8")
 		self.heat = np.zeros(shape=(size,size))
 		self.turn = Board.BLACK
+
+	def computeKey(self):
+		"""Recompute the whole key"""
+		self.key = 0
+		size = self.size
+		for i in range(size):
+			for j in range(size):
+				c = self.stones[i][j]
+				self.key ^= Board.ZOBRIST[c][i][j]
 
 	def copy(self):
 		"""Return a copy of the board"""
 		size = self.size
 		cpy = Board(size=size)
 		cpy.stones = self.stones.copy()
-		cpy.heat = self.stones.copy()
+		cpy.heat = self.heat.copy()
+		cpy.key = self.key
 		return cpy
 
 	def clear(self):
 		"""Clear the content of the board"""
 		size = self.size
+		self.key = 0
 		self.stones = np.zeros(shape=(size, size))
 		self.heat = np.zeros(shape=(size,size))
 
 	def clearStones(self):
 		"""Clear stones only"""
 		size = self.size
+		self.key = 0
 		self.stones = np.zeros(shape=(size, size))
-
 
 	def resize(self, size):
 		"""Clear the content of the board and resize it"""
@@ -92,14 +112,18 @@ class Board:
 	def rotate(self, num=-1):
 		self.stones = np.rot90(self.stones, num)
 		self.heat = np.rot90(self.heat, -num)
+		self.computeKey()
 
 	def setTurn(self, pla):
 		"""Set turn"""
 		self.turn = pla
+		self.key ^= Board.ZOBRITSTURN[pla]
 
 	def setStone(self, i, j, pla):
 		"""Hard-set a stone at coordinates (i, j)"""
+		oldpla = self.stones[i][j] # will be zero if intersection is empty
 		self.stones[i][j] = pla
+		self.key ^= Board.ZOBRIST[pla][i][j] ^ Board.ZOBRIST[oldpla][i][j]
 
 	def setSequence(self, moves):
 		"""Hard stones on the board"""
@@ -108,6 +132,7 @@ class Board:
 
 	def playStone(self, i, j, pla=None):
 		"""Play a stone a coordinates (i, j)"""
+		oldpla = self.turn
 		if not pla: pla = self.turn
 		if not self.isLegal(i, j, pla):
 			raise(Exception("Move {} is illegal".format(
@@ -118,6 +143,8 @@ class Board:
 				self.stones[u][v] = Board.EMPTY
 		self.setStone(i, j, pla)
 		self.turn = Board.getOpponent(pla)
+		self.key ^= Board.ZOBRITSTURN[oldpla] ^ Board.ZOBRITSTURN[pla] ^\
+			Board.ZOBRITSTURN[self.turn]
 
 	def captured(self, i, j, pla):
 		"""Return the list of captured chains by move i, j"""
