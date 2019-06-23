@@ -162,12 +162,8 @@ class KataGo:
 	def waitOutput(self, csleep=10):
 		"""Wait for KataGo to output something. If there is no input at
 		the current moment, sleep for csleep centi-seconds. """
-		while True:
-			line = self.pollOutput()
-			if not line:
-				time.sleep(csleep/100.0)
-			else: break
-		return line
+		line = self.queue.get()
+		return line.decode()
 
 	def pollOutput(self):
 		"""Poll the last output from katago"""
