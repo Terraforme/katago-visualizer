@@ -246,6 +246,14 @@ def render_hints(pv, turn, coord=None):
 	for visits, _, _, _, _ in pv:
 		numVisits += visits
 
+	drawnSeq = False
+	for _, _, _, _, moves in pv:
+		if moves[0] == coord:
+			draw_moves(moves, turn)
+			drawnSeq = True
+
+	if drawnSeq: return None
+
 	isFirst = True
 	for i, (visits, winrate, scoreMean, scoreStDev, moves) in enumerate(pv):
 		if i >= HINT_LIMIT: break
@@ -323,13 +331,45 @@ def render(board, history, coord=None):
 
 	SDL_RenderPresent(renderer)
 
+# Init board, katago and history
+
+def init(SDL_KATAGO, path=None):
+
+	if not path:
+		board = Board(size=19)
+		kata = KataGo(SDL_KATAGO)
+		history = Node(kata)
+		kata.setBoardsize(19)
+		kata.setKomi(7.5)
+
+	else:
+		gdata, setup, moves, rules = sgffiles.load_sgf_moves(path)
+
+		board = Board(size=gdata.size)
+		kata = KataGo(SDL_KATAGO)
+		history = Node(kata)
+		kata.setBoardsize(gdata.size)
+		kata.setKomi(gdata.komi)
+
+		# Setting setup stones
+		for pla, i, j in setup:
+			history.playMove(board, i, j, pla, analyse=False)
+		board = history.getCurrentBoard()
+		history = history.setRootHere()
+		
+		for pla, i, j in moves:
+			history.playMove(board, i, j, pla, transmit=False)
+		history.goToRoot()
+		board = history.getCurrentBoard()
+
+	kata.analyse(ttime=100)
+
+	return board, kata, history
+
 def run():
 
 	# Asking the user to load a game
-	path = sys.argv[1] if len(sys.argv) > 1 else input("load: ")
-	gdata, setup, moves, rules = sgffiles.load_sgf_moves(path)
-	movID = 0
-	movnum = len(moves)
+	path = sys.argv[1] if len(sys.argv) > 1 else None
 
 	SDL_Init(SDL_INIT_VIDEO)
 	TTF_Init()
@@ -351,30 +391,12 @@ def run():
 	SDL_KATAGO = SDL_RegisterEvents(1)
 
 	# Initialise board & katago
-	board = Board(size=gdata.size)
-	kata = KataGo(SDL_KATAGO)
-	history = Node(kata)
-	kata.setBoardsize(gdata.size)
-	kata.setKomi(gdata.komi)
-
-	# Setting setup stones
-	for pla, i, j in setup:
-		history.playMove(board, i, j, pla, analyse=False)
-	board = history.getCurrentBoard()
-	history = history.setRootHere()
-	
-	for pla, i, j in moves:
-		history.playMove(board, i, j, pla, transmit=False)
-	history.goToRoot()
-	board = history.getCurrentBoard()
-	
+	board, kata, history = init(SDL_KATAGO, path)
 	
 	running = True
 	event = SDL_Event()	
 	
-	kata.analyse(ttime=100)
 	lastCoord = None
-
 	render(board, history)
 	while running:
 		# Event loop

@@ -62,8 +62,11 @@ class Node:
 		return self._getCurrent().move
 
 	def getTurn(self):
-		pla, i, j = self.getLastMove()
-		return Board.getOpponent(pla)
+		move = self.getLastMove()
+		if not move: return Board.BLACK
+		else:
+			pla, i, j = self.getLastMove()
+			return Board.getOpponent(pla)
 
 	def getPV(self):
 		"""Return current main variations"""
