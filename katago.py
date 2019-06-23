@@ -1,4 +1,6 @@
 import sys
+from threading import Thread
+from queue import Queue, Empty
 import subprocess
 import os
 
@@ -48,9 +50,16 @@ def parseLine(line):
 			txt = txt[i+1:]
 		else :
 			txt = txt[i:]
-		heatInfos = ' '.join(tok for tok in txt)
+		heatInfos = np.array([float(tok) for tok in txt])
 		return infos, heatInfos
 	return None
+
+# Thanks stackoverflow ! 
+# https://stackoverflow.com/questions/375427/non-blocking-read-on-a-subprocess-pipe-in-python
+def enqueue_output(out, queue):
+	for line in iter(out.readline, b''):
+		queue.put(line)
+	out.close()
 
 class KataGo:
 
@@ -82,6 +91,11 @@ class KataGo:
 
 		self.stdin = self.pid.stdin.fileno()
 		self.stdout = self.pid.stdout.fileno()
+
+		# self.queue = Queue()
+		# self.thread = Thread(target=enqueue_output, args=(self.pid.stdout, self.queue))
+		# self.thread.daemon = True
+		# self.thread.start()
 
 	def sendCommand(self, cmd):
 		"""Send a raw command to katago"""
@@ -147,7 +161,17 @@ class KataGo:
 	def waitOutput(self):
 		"""Wait for KataGo to output something"""
 		line = self.pid.stdout.readline().decode()
+		print(line)
 		return line
+
+	def pollOutput(self):
+		"""Poll the last output from katago"""
+		try: 
+			line = self.queue.get_nowait() # or .get(timeout=...)
+		except Empty:
+			return None
+		else:
+			return line
 
 	def waitAnalysis(self, stop=True):
 		"""Wait for an output of the analysis.
@@ -161,6 +185,21 @@ class KataGo:
 			break
 		return tmp
 
-	
+	def getAnalysis(self, stop=False):
+		"""Get the last analysis from katago. If there are no such analysis,
+		return empty analysis data [], "" """
+		infos, heatInfos = [], ""
+		while True:
+			# Get last line - if there are no line, stop and return current 
+			# infos and heatInfos
+			line = self.pollOutput()
+			if not line: 
+				return infos, heatInfos
+
+			# Parse last line - if it does not work, continue 
+			tmp = parseLine(line)
+			if not tmp: continue
+			infos, heatInfos = tmp
+			
 
 	

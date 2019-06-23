@@ -218,6 +218,14 @@ class Board:
 			txt += "\n"
 		return txt
 
+	def loadHeatFromArray(self, array):
+		"""Load heats from a numpy array"""
+		size = self.size
+		for row in range(size):
+			for col in range(size):
+				self.heat[row][col] = - array[col * size + row]
+				# FIXME -1 * . is articial
+
 	# miscellaneous
 
 	def render_seq(self, moves):

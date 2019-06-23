@@ -14,15 +14,17 @@ if __name__ == "__main__":
 	board.setSequence(setup)
 	board.render_seq(moves)
 
-	run(board)
-	raise SystemExit(0)
-
 	kata = KataGo()
 	kata.setBoardsize(gdata.size)
 	kata.setKomi(gdata.komi)
 	kata.playSeq(setup)
-	kata.playSeq(moves[:20])
+	kata.playSeq(moves)
+	print("Analysing....")
 	kata.analyse()
-	print(kata.waitAnalysis())
+	infos, heatInfos = kata.waitAnalysis()
+	print("Analyse is over.")
+	board.loadHeatFromArray(heatInfos)
 	kata.close()
-	print("Everything went well !")
+
+	run(board)
+	raise SystemExit(0)

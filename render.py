@@ -10,13 +10,13 @@ from board import Board
 #
 
 # Cell size, should be odd because the intersection is 1px wide.
-CELL_SIZE = 33
+CELL_SIZE = 23
 # Margin around the goban, in all four directions
 MARGIN = 40
 # Height of the control area at the bottom
 CONTROLS = 100
 # Stone radius, should be less than CELL_SIZE // 2
-STONE_RADIUS = 14
+STONE_RADIUS = 10
 
 # The following are calculated values and not parameters:
 
@@ -32,6 +32,20 @@ HEIGHT = MARGIN + 19 * CELL_SIZE + MARGIN + CONTROLS
 WHITE = (255, 255, 255, 255)
 BLACK = (0, 0, 0, 255)
 GRAY  = lambda x: (x, x, x, 255)
+HEAT_RED = (150, 25, 0, 255)
+HEAT_BLACK = (25, 25, 25, 255)
+def HEAT(x):
+	if x == 0: return WHITE
+	elif x < 0:
+		x = - x
+		mr, mg, mb, a = HEAT_BLACK
+	else:
+		mr, mg, mb, a = HEAT_RED
+	r = int(x * mr + (1 - x) * 255)
+	g = int(x * mg + (1 - x) * 255)
+	b = int(x * mb + (1 - x) * 255)
+	return (r, g, b, 255)
+
 
 #
 #  Global data
@@ -155,7 +169,7 @@ def render(board):
 	# Heat map
 	for row in range(1, 20):
 		for col in range(1, 20):
-			fillrect(*cell_rect(row, col), GRAY(240))
+			fillrect(*cell_rect(row, col), HEAT(board.heat[row-1][col-1]))
 
 	for i in range(1, 20):
 		line(*inter(1, i), *inter(19, i), GRAY(128))
