@@ -191,7 +191,7 @@ def circ_mark(x, y, owner):
 
 
 # Draw a sequence of moves
-def draw_moves(moves, pla, limit=10):
+def draw_moves(moves, pla, limit=25):
 	getowner = lambda c: "black" if c == Board.BLACK else "white"
 	getcolor = lambda c: WHITE if c == Board.BLACK else BLACK 
 	for i, (col, row) in enumerate(moves):
@@ -386,6 +386,8 @@ def run():
 		elif event.type == SDL_KATAGO:
 			if kata.lastAnalyse:
 				infos, heatInfos = kata.lastAnalyse
+				# skip if event key is out of date
+				if kata.key != kata.lastEventKey: continue 
 				if history.getTurn() == Board.WHITE: heatInfos = -heatInfos
 				history.updPV(infos)
 				board.loadHeatFromArray(heatInfos)
@@ -393,6 +395,8 @@ def run():
 			if event.key.keysym.sym == SDLK_RIGHT:
 				history.setBoard(board) # save current board
 				board = history.goForward(transmit=True, analyse=True)
+				if board == None:
+					board = history.getCurrentBoard()
 			elif event.key.keysym.sym == SDLK_LEFT:
 				history.setBoard(board) # save current board
 				board = history.undo(transmit=True, analyse=True)

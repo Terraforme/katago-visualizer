@@ -64,6 +64,7 @@ def enqueue_output(out, katago):
 			ev = SDL_Event()
 			ev.type = katago.eventID
 			SDL_PushEvent(ev)
+			katago.lastEventKey = katago.key
 	out.close()
 
 class KataGo:
@@ -96,6 +97,8 @@ class KataGo:
 
 		self.lastAnalyse = None
 		self.eventID = eventID
+		self.key = 0
+		self.lastEventKey = 0 # FIXME: this is bad
 
 		self.stdin = self.pid.stdin.fileno()
 		self.stdout = self.pid.stdout.fileno()

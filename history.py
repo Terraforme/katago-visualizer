@@ -99,6 +99,7 @@ class Node:
 				self._getRoot().katago.stop()
 				self._getRoot().katago.playCoord(i, j, pla)
 				if analyse: self._getRoot().katago.analyse(ttime)
+				self._getRoot().katago.key = self.getCurrentBoard().key
 			return self.getCurrentBoard()
 
 	def undo(self, ttime=100, transmit=True, analyse=True):
@@ -110,6 +111,7 @@ class Node:
 				self._getRoot().katago.stop()
 				self._getRoot().katago.undo()
 				if analyse: self._getRoot().katago.analyse(ttime)
+				self._getRoot().katago.key = self.getCurrentBoard().key
 		return self.getCurrentBoard()
 
 	def playBoard(self, board):
@@ -125,10 +127,11 @@ class Node:
 		self._getCurrent().setBoard(board) # save the current board
 		board.playStone(i, j, pla)
 		if transmit: 
-			self.root.katago.stop()
-			self.root.katago.playCoord(i, j, pla)
-			if analyse: self.root.katago.analyse(ttime=ttime)
+			self._getRoot().katago.stop()
+			self._getRoot().katago.playCoord(i, j, pla)
+			if analyse: self._getRoot().katago.analyse(ttime=ttime)
 		self.playBoard(board)
+		self._getRoot().katago.key = self.getCurrentBoard().key
 		self._getCurrent().move = pla, i, j
 
 	def goToRoot(self, transmit=False):
