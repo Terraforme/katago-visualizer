@@ -231,8 +231,8 @@ def adjustStr(txt):
 
 def hint_info(x, y, visits, score):
 	visitstr = str(visits)
-	if score < 0: scorestr = "+{:.0f}".format(-score)
-	else: scorestr = "-{:.0f}".format(score)
+	if score > 0: scorestr = "+{:.0f}".format(score)
+	else: scorestr = "-{:.0f}".format(-score)
 	text(x, y-5, adjustStr(visitstr), tfont="tiny")
 	text(x, y+5, scorestr, tfont="tiny")
 
@@ -242,9 +242,10 @@ def hint_info(x, y, visits, score):
 
 def render_hints(pv, turn, coord=None):
 
-	numVisits = 0
+	maxVisits = 0
 	for visits, _, _, _, _ in pv:
-		numVisits += visits
+		maxVisits = max(maxVisits, visits)
+	if maxVisits == 0: maxVisits = 1
 
 	drawnSeq = False
 	for _, _, _, _, moves in pv:
@@ -258,7 +259,7 @@ def render_hints(pv, turn, coord=None):
 	for i, (visits, winrate, scoreMean, scoreStDev, moves) in enumerate(pv):
 		if i >= HINT_LIMIT: break
 		col, row = moves[0]
-		hint_stone(*inter(row+1, col+1), intensity=visits/numVisits, isFirst=isFirst)
+		hint_stone(*inter(row+1, col+1), intensity=visits/maxVisits, isFirst=isFirst)
 		hint_info(*inter(row+1, col+1), visits, scoreMean)
 		isFirst = False
 
