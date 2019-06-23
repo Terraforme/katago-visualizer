@@ -28,8 +28,6 @@ WIDTH = MARGIN + 19 * CELL_SIZE + MARGIN
 # Window height
 HEIGHT = MARGIN + 19 * CELL_SIZE + MARGIN + CONTROLS
 
-FPS = 30
-
 #
 #  Basic colors
 #
@@ -37,8 +35,13 @@ FPS = 30
 WHITE = (255, 255, 255, 255)
 BLACK = (0, 0, 0, 255)
 GRAY  = lambda x: (x, x, x, 255)
+
+# Hint colors
 HINT_COLOR = (240, 240, 5, 255)
+# Border color of the best move
 PV_COLOR = (255, 0, 0, 255)
+
+# Heat colors
 HEAT_RED = (150, 25, 0, 255)
 HEAT_BLACK = (25, 25, 25, 255)
 def HEAT(x):
@@ -56,6 +59,9 @@ def HEAT(x):
 #
 #  Global data
 #
+
+# Maximum number of shown hints
+HINT_LIMIT = 10
 
 # SDL Renderer
 renderer = None
@@ -77,6 +83,14 @@ def inter(row, col):
 	x = MARGIN + half + CELL_SIZE * (row - 1)
 	y = MARGIN + half + CELL_SIZE * (col - 1)
 	return (x, y)
+
+def getCoordinates(x, y):
+	i = (x - MARGIN) // CELL_SIZE
+	j = (y - MARGIN) // CELL_SIZE
+	if i < 0 or i >= 19: return None
+	if j < 0 or j >= 19: return None
+	return j, i
+
 
 # The rectangle around an intersection.
 def cell_rect(row, col):
@@ -175,6 +189,18 @@ def circ_mark(x, y, owner):
 	r = STONE_RADIUS // 2
 	gfx.aacircleRGBA(renderer, x, y, r, *border)
 
+
+# Draw a sequence of moves
+def draw_moves(moves, pla, limit=10):
+	getowner = lambda c: "black" if c == Board.BLACK else "white"
+	getcolor = lambda c: WHITE if c == Board.BLACK else BLACK 
+	for i, (col, row) in enumerate(moves):
+		col, row = col + 1, row + 1
+		stone(*inter(row, col), getowner(pla))
+		text(*inter(row, col), str(i+1), color=getcolor(pla))
+		pla = Board.getOpponent(pla)
+
+
 def hint_stone(x, y, intensity=0.5, isFirst=False):
 	r, g, b, a = HINT_COLOR
 	a = int(255 * intensity)
@@ -214,23 +240,29 @@ def hint_info(x, y, visits, score):
 #  Hint rendering function
 #
 
-def render_hints(pv):
+def render_hints(pv, turn, coord=None):
 
 	numVisits = 0
 	for visits, _, _, _, _ in pv:
 		numVisits += visits
 
 	isFirst = True
-	for visits, winrate, scoreMean, scoreStDev, moves in pv:
+	for i, (visits, winrate, scoreMean, scoreStDev, moves) in enumerate(pv):
+		if i >= HINT_LIMIT: break
 		col, row = moves[0]
 		hint_stone(*inter(row+1, col+1), intensity=visits/numVisits, isFirst=isFirst)
 		hint_info(*inter(row+1, col+1), visits, scoreMean)
 		isFirst = False
+
+	for _, _, _, _, moves in pv:
+		if moves[0] == coord:
+			draw_moves(moves, turn)
+
 #
 #  Board rendering function
 #
 
-def render(board, history):
+def render(board, history, coord=None):
 
 	# Getting informations
 	pv = history.getPV()
@@ -286,8 +318,8 @@ def render(board, history):
 		x, y = inter(19, i)
 		text(x + 32, y, str(20-i), BLACK, align_x="center", align_y="center")
 
-	# Rendering Hints
-	render_hints(pv)
+	# Rendering Hints & variations
+	render_hints(pv, turn=history.getTurn(), coord=coord)
 
 	SDL_RenderPresent(renderer)
 
@@ -341,6 +373,7 @@ def run():
 	event = SDL_Event()	
 	
 	kata.analyse(ttime=100)
+	lastCoord = None
 
 	render(board, history)
 	while running:
@@ -365,10 +398,35 @@ def run():
 				board = history.undo(transmit=True, analyse=True)
 			else: # for performance reasons
 				continue
+		elif event.type == SDL_MOUSEMOTION:
+			x, y = ctypes.c_int(0), ctypes.c_int(0)
+			buttonState = SDL_GetMouseState(ctypes.byref(x), ctypes.byref(y))
+			x, y = x.value, y.value
+			coord = getCoordinates(x, y)
+			if not coord: 
+				lastCoord = None
+				continue # performances !
+			else:
+				if not lastCoord: lastCoord = coord
+				elif lastCoord == coord: continue # performances !
+				else:
+					lastCoord = coord
+		elif event.type == SDL_MOUSEBUTTONDOWN:
+			if event.button.button == SDL_BUTTON_LEFT:
+				if not lastCoord: continue
+				i, j = lastCoord
+				history.setBoard(board) # save current board
+				history.playMove(board, i, j, history.getTurn(), transmit=True, analyse=True)
+				board = history.getCurrentBoard()
+			elif event.button.button == SDL_BUTTON_RIGHT:
+				history.setBoard(board) # save current board
+				board = history.undo(transmit=True, analyse=True)
+			else: # PERFOOOORMANNNNCES 
+				continue
 		else: # performances +++ 
 			continue
 
-		render(board, history)
+		render(board, history, lastCoord)
 
 	print("Closing KataGo")
 	kata.close()
