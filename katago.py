@@ -1,6 +1,7 @@
 import sys
 from threading import Thread
 from queue import Queue, Empty
+import time
 import subprocess
 import os
 
@@ -85,17 +86,17 @@ class KataGo:
 		cmd = "{} gtp -model {} -config {}".format(
 			KataGo.BIN, KataGo.STDMODEL, KataGo.CONFIG)
 		self.pid = subprocess.Popen(cmd.split(), stdin=subprocess.PIPE, 
-			stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+			stdout=subprocess.PIPE, stderr=subprocess.STDOUT, bufsize=1)
 		if not self.pid: # TODO: check the doc of subprocess.Popen
 			raise Exception("Error when starting KataGo")
 
 		self.stdin = self.pid.stdin.fileno()
 		self.stdout = self.pid.stdout.fileno()
 
-		# self.queue = Queue()
-		# self.thread = Thread(target=enqueue_output, args=(self.pid.stdout, self.queue))
-		# self.thread.daemon = True
-		# self.thread.start()
+		self.queue = Queue()
+		self.thread = Thread(target=enqueue_output, args=(self.pid.stdout, self.queue))
+		self.thread.daemon = True
+		self.thread.start()
 
 	def sendCommand(self, cmd):
 		"""Send a raw command to katago"""
@@ -158,10 +159,14 @@ class KataGo:
 		cmd = KataGo.ANALYSIS_CMD.format(ttime)
 		self.sendCommand(cmd)
 
-	def waitOutput(self):
-		"""Wait for KataGo to output something"""
-		line = self.pid.stdout.readline().decode()
-		print(line)
+	def waitOutput(self, csleep=10):
+		"""Wait for KataGo to output something. If there is no input at
+		the current moment, sleep for csleep centi-seconds. """
+		while True:
+			line = self.pollOutput()
+			if not line:
+				time.sleep(csleep/100.0)
+			else: break
 		return line
 
 	def pollOutput(self):
@@ -171,7 +176,7 @@ class KataGo:
 		except Empty:
 			return None
 		else:
-			return line
+			return line.decode()
 
 	def waitAnalysis(self, stop=True):
 		"""Wait for an output of the analysis.
