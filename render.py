@@ -207,7 +207,7 @@ def render(board):
 
 	SDL_RenderPresent(renderer)
 
-def run(board):
+def run(board, katago):
 
 	SDL_Init(SDL_INIT_VIDEO)
 	TTF_Init()
@@ -226,16 +226,23 @@ def run(board):
 	running = True
 	event = SDL_Event()
 
+	katago.analyse(ttime=100)
+
 	while running:
 		# Event loop
+		
 		SDL_WaitEvent(event)
 		if event.type == SDL_QUIT:
 			running = False
 			break
 
 		# Rendering
+		infos, heatInfos = katago.getAnalysis()
+		if infos != []: 
+			board.loadHeatFromArray(heatInfos)
 		render(board)
 
+	katago.close()
 	SDL_DestroyRenderer(renderer)
 	SDL_DestroyWindow(window)
 	SDL_Quit()

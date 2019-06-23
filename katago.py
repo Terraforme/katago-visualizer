@@ -154,7 +154,8 @@ class KataGo:
 	# More serious commands
 
 	def analyse(self, ttime=None):
-		"""Start KataGo's analysis - time is in centiseconds"""
+		"""Start KataGo's analysis - time is in centiseconds and controls
+		at which frequency katago's send analysis informations."""
 		if not ttime: ttime = KataGo.THINKING_TIME
 		cmd = KataGo.ANALYSIS_CMD.format(ttime)
 		self.sendCommand(cmd)

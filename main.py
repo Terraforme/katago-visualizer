@@ -19,12 +19,6 @@ if __name__ == "__main__":
 	kata.setKomi(gdata.komi)
 	kata.playSeq(setup)
 	kata.playSeq(moves)
-	print("Analysing....")
-	kata.analyse()
-	infos, heatInfos = kata.waitAnalysis()
-	print("Analyse is over.")
-	board.loadHeatFromArray(heatInfos)
-	kata.close()
-
-	run(board)
+	
+	run(board, kata)
 	raise SystemExit(0)
