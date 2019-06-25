@@ -62,6 +62,7 @@ class Board:
 
 	getOpponent = lambda c: Board.WHITE if c == Board.BLACK else Board.BLACK
 	getAdj = lambda i, j: [(i+1, j), (i-1, j), (i, j+1), (i, j-1)]
+	getSign = lambda c: Board.BSIGN if c == Board.BLACK else Board.WSIGN
 	SIGNSWITCH = lambda s: - s
 
 	ROWS = "ABCDEFGHJKLMNOPQRST"
@@ -258,6 +259,13 @@ class Board:
 			for col in range(size):
 				self.heat[row][col] = - array[col * size + row]
 				# FIXME -1 * . is articial
+
+	def deadValue(self, i, j):
+		"""Return the chances that the stone at coordinates (i, j) 
+		is dead or not"""
+		if self.stones[j][i] == Board.EMPTY: return 0
+		sign = Board.getSign(self.stones[j][i])
+		return sign * self.heat[i][j]
 
 	# miscellaneous
 

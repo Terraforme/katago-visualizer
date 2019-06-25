@@ -7,6 +7,7 @@ from history import Node
 from sdl2 import *
 from sdl2.sdlttf import *
 import sdl2.sdlgfx as gfx
+from math import cos, sin, pi
 import time
 #
 #  Board layout parameters
@@ -176,6 +177,16 @@ def circle(cx, cy, radius, color):
 		x += 1
 		m += 8 * x + 4
 
+# Draw a triangle.
+def triangle(cx, cy, radius, color):
+	SDL_SetRenderDrawColor(renderer, *color)
+
+	rcospi = int(radius*cos(pi/6))
+	rsinpi = int(radius*sin(pi/6))
+	line(cx, cy - radius, cx + rcospi, cy + rsinpi, color)
+	line(cx + rcospi, cy + rsinpi, cx - rcospi, cy + rsinpi, color)
+	line(cx - rcospi, cy + rsinpi, cx, cy - radius, color)
+
 # Draws a stone. The owner can be either "black" or "white".
 def stone(x, y, owner):
 	main, border = (BLACK, WHITE) if owner == "black" else (WHITE, BLACK)
@@ -205,6 +216,16 @@ def draw_moves(moves, pla, limit=25):
 		text(*inter(row, col), str(i+1), color=getcolor(pla))
 		pla = Board.getOpponent(pla)
 
+# Mark dead stones
+def draw_dead_stones(board):
+	for row in range(1, 20):
+		for col in range(1, 20):
+			owner = board.stones[col-1][row-1]
+			p = board.deadValue(row-1, col-1)
+			if p > 0:
+				color = WHITE if owner == Board.BLACK else BLACK
+				radius = int((1 + p) * STONE_RADIUS // 3)
+				triangle(*inter(row, col), radius, color)
 
 def hint_stone(x, y, intensity=0.5, isFirst=False):
 	r, g, b, a = HINT_COLOR
@@ -344,6 +365,7 @@ def render(board, history, coord=None):
 		text(x + 32, y, str(20-i), BLACK, align_x="center", align_y="center")
 
 	# Rendering Hints & variations
+	draw_dead_stones(board)
 	render_hints(pv, turn=history.getTurn(), coord=coord)
 
 	SDL_RenderPresent(renderer)
