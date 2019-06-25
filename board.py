@@ -115,6 +115,12 @@ class Board:
 		self.heat = np.rot90(self.heat, -num)
 		self.computeKey()
 
+	def setHeat(self, i, j, heat):
+		self.heat[j][i] = heat
+
+	def getHeat(self, i, j):
+		return self.heat[j][i]
+
 	def setTurn(self, pla):
 		"""Set turn"""
 		self.turn = pla
@@ -252,6 +258,18 @@ class Board:
 			txt += "\n"
 		return txt
 
+	def mergeHeat(self):
+		"""Merge heat values by taking the average on each group"""
+		groups = self.getGroups()
+		for chain in groups:
+			heat = 0
+			for i, j in chain:
+				heat += self.getHeat(i, j)
+			heat /= len(chain)
+			for i, j in chain:
+				self.setHeat(i, j, heat)
+
+
 	def loadHeatFromArray(self, array):
 		"""Load heats from a numpy array"""
 		size = self.size
@@ -259,6 +277,7 @@ class Board:
 			for col in range(size):
 				self.heat[row][col] = - array[col * size + row]
 				# FIXME -1 * . is articial
+		self.mergeHeat()
 
 	def deadValue(self, i, j):
 		"""Return the chances that the stone at coordinates (i, j) 

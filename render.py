@@ -26,6 +26,7 @@ SHOW_BLACK_HINTS = True
 SHOW_WHITE_HINTS = True
 SHOW_HEAT_MAP = True
 SHOW_VARIATION = True
+SHOW_DEAD_STONES = True
 
 # The following are calculated values and not parameters:
 
@@ -365,7 +366,7 @@ def render(board, history, coord=None):
 		text(x + 32, y, str(20-i), BLACK, align_x="center", align_y="center")
 
 	# Rendering Hints & variations
-	draw_dead_stones(board)
+	if SHOW_DEAD_STONES: draw_dead_stones(board)
 	render_hints(pv, turn=history.getTurn(), coord=coord)
 
 	SDL_RenderPresent(renderer)
@@ -419,6 +420,7 @@ def run():
 	global SHOW_BLACK_HINTS
 	global SHOW_WHITE_HINTS
 	global SHOW_HEAT_MAP
+	global SHOW_DEAD_STONES
 
 	window = SDL_CreateWindow("KataGo Analyzer".encode(),
 		SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
@@ -470,6 +472,8 @@ def run():
 				SHOW_BLACK_HINTS = not SHOW_BLACK_HINTS
 			elif event.key.keysym.sym == SDLK_h:
 				SHOW_HEAT_MAP = not SHOW_HEAT_MAP
+			elif event.key.keysym.sym == SDLK_d:
+				SHOW_DEAD_STONES = not SHOW_DEAD_STONES
 			else: # for performance reasons
 				continue
 		elif event.type == SDL_MOUSEMOTION:
@@ -490,8 +494,11 @@ def run():
 				if not lastCoord: continue
 				i, j = lastCoord
 				history.setBoard(board) # save current board
-				history.playMove(board, i, j, history.getTurn(), transmit=True, analyse=True)
-				board = history.getCurrentBoard()
+				try:
+					history.playMove(board, i, j, history.getTurn(), transmit=True, analyse=True)
+					board = history.getCurrentBoard()
+				except:
+					print("This move is illegal")
 			elif event.button.button == SDL_BUTTON_RIGHT:
 				history.setBoard(board) # save current board
 				board = history.undo(transmit=True, analyse=True)
