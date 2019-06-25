@@ -21,6 +21,11 @@ CONTROLS = 100
 # Stone radius, should be less than CELL_SIZE // 2
 STONE_RADIUS = 10
 
+SHOW_BLACK_HINTS = True
+SHOW_WHITE_HINTS = True
+SHOW_HEAT_MAP = True
+SHOW_VARIATION = True
+
 # The following are calculated values and not parameters:
 
 # Window width
@@ -242,6 +247,14 @@ def hint_info(x, y, visits, score):
 
 def render_hints(pv, turn, coord=None):
 
+	if turn == Board.BLACK and not SHOW_BLACK_HINTS:
+		return None
+	if turn == Board.WHITE and not SHOW_WHITE_HINTS:
+		return None
+
+	global SHOW_VARIATION
+	SHOW_VARIATION = SHOW_BLACK_HINTS and SHOW_WHITE_HINTS
+
 	maxVisits = 0
 	for visits, _, _, _, _ in pv:
 		maxVisits = max(maxVisits, visits)
@@ -250,7 +263,12 @@ def render_hints(pv, turn, coord=None):
 	drawnSeq = False
 	for _, _, _, _, moves in pv:
 		if moves[0] == coord:
-			draw_moves(moves, turn)
+			if SHOW_VARIATION: 
+				# Show the whole sequence only if 'show_variation' is on
+				draw_moves(moves, turn)
+			else:
+				# Else, just draw one move
+				draw_moves([moves[0]], turn)
 			drawnSeq = True
 
 	if drawnSeq: return None
@@ -263,10 +281,6 @@ def render_hints(pv, turn, coord=None):
 		hint_info(*inter(row+1, col+1), visits, scoreMean)
 		isFirst = False
 
-	for _, _, _, _, moves in pv:
-		if moves[0] == coord:
-			draw_moves(moves, turn)
-
 #
 #  Board rendering function
 #
@@ -274,6 +288,7 @@ def render_hints(pv, turn, coord=None):
 def render(board, history, coord=None):
 
 	# Getting informations
+	pla = history.getTurn()
 	pv = history.getPV()
 	lmove = history.getLastMove()
 
@@ -283,9 +298,10 @@ def render(board, history, coord=None):
 	text(WIDTH // 2, HEIGHT - CONTROLS // 2, "KataGo Analyzer", BLACK)
 
 	# Heat map
-	for row in range(1, 20):
-		for col in range(1, 20):
-			fillrect(*cell_rect(row, col), HEAT(board.heat[row-1][col-1]))
+	if SHOW_HEAT_MAP:
+		for row in range(1, 20):
+			for col in range(1, 20):
+				fillrect(*cell_rect(row, col), HEAT(board.heat[row-1][col-1]))
 
 	for i in range(1, 20):
 		line(*inter(1, i), *inter(19, i), GRAY(128))
@@ -378,6 +394,9 @@ def run():
 	global font
 	global tinyfont
 	global renderer
+	global SHOW_BLACK_HINTS
+	global SHOW_WHITE_HINTS
+	global SHOW_HEAT_MAP
 
 	window = SDL_CreateWindow("KataGo Analyzer".encode(),
 		SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
@@ -423,6 +442,12 @@ def run():
 			elif event.key.keysym.sym == SDLK_LEFT:
 				history.setBoard(board) # save current board
 				board = history.undo(transmit=True, analyse=True)
+			elif event.key.keysym.sym == SDLK_w:
+				SHOW_WHITE_HINTS = not SHOW_WHITE_HINTS
+			elif event.key.keysym.sym == SDLK_b:
+				SHOW_BLACK_HINTS = not SHOW_BLACK_HINTS
+			elif event.key.keysym.sym == SDLK_h:
+				SHOW_HEAT_MAP = not SHOW_HEAT_MAP
 			else: # for performance reasons
 				continue
 		elif event.type == SDL_MOUSEMOTION:
