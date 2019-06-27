@@ -1,5 +1,8 @@
 from board import *
 
+TTIME = 100
+LVLMUL = 100
+
 class Node:
 
 	def __init__(self, katago):
@@ -61,11 +64,53 @@ class Node:
 	def getLastMove(self):
 		return self._getCurrent().move
 
-	def getTurn(self):
-		move = self.getLastMove()
+	def getPrevMove(self):
+		return self.parent.move
+
+	def scoreMean(self, absolute=True, normalized=False):
+		"""Return the score mean - if absolute is True, return the score of 
+		Black. The 'normalized' parameter divied by the scoreStDev to take
+		accound of the complexity of the situation.""" 
+		pv = self.pv
+		if pv == []: return None
+		visits, winrate, scoreMean, scoreStDev, moves = pv[0]
+		if scoreStDev == 0: scoreStDev = 1
+		turn = self.getTurn(current=False)
+		if absolute:
+			val = - scoreMean * Board.getSign(turn)
+		else:
+			val = - scoreMean
+
+		if normalized: 
+			return val / scoreStDev
+		else:
+			return val
+
+	def getCurrentScoreMean(self):
+		"""Return current score according to last analysis"""
+		return self._getCurrent().scoreMean()
+
+	def getScoreSeq(self, normalized=False):
+		"""Return the list of score from root to current"""
+		cur = self._getCurrent()
+		root = self._getRoot()
+		scores = [0]
+		while True:
+			score = cur.scoreMean(normalized=normalized)
+			if not score: score = scores[-1]
+			scores.append(score)
+			if cur == root or cur == cur.parent: break
+			cur = cur.parent
+		
+		scores.reverse()
+		scores.pop()
+		return scores
+
+	def getTurn(self, current=True):
+		move = self.getLastMove() if current else self.getPrevMove()
 		if not move: return Board.BLACK
 		else:
-			pla, i, j = self.getLastMove()
+			pla, i, j = move
 			return Board.getOpponent(pla)
 
 	def getPV(self):
@@ -89,7 +134,7 @@ class Node:
 		node.setBoard(board)
 		self._getCurrent().children.append(node)
 		
-	def goForward(self, ttime=100, transmit=True, analyse=True):
+	def goForward(self, ttime=TTIME, transmit=True, analyse=True):
 		"""Go to the leftmost child. If there is no child, print an error 
 		message. Return the corresponding board"""
 		if self._getCurrent().children == []: 
@@ -105,7 +150,7 @@ class Node:
 				self._getRoot().katago.key = self.getCurrentBoard().key
 			return self.getCurrentBoard()
 
-	def undo(self, ttime=100, transmit=True, analyse=True):
+	def undo(self, ttime=TTIME, transmit=True, analyse=True):
 		"""Go to the parent, and return the corresponding board."""
 		oldcurrent = self._getCurrent()
 		self._setCurrent(self._getCurrent().parent)
@@ -125,7 +170,7 @@ class Node:
 				self._setCurrent(child)
 				return None
 
-	def playMove(self, board, i, j, pla, transmit=True, analyse=True, ttime=100):
+	def playMove(self, board, i, j, pla, transmit=True, analyse=True, ttime=TTIME):
 		"""Play a move on a board and add it in the history"""
 		self._getCurrent().setBoard(board) # save the current board
 		board.playStone(i, j, pla)
@@ -144,3 +189,37 @@ class Node:
 			self.undo(transmit=transmit, analyse=False)
 			cur = cur._getPrevious()
 		self._setCurrent(self._getRoot())
+
+	def localLoss(self, normalized=True):
+		"""Return the loss for current move in history"""
+		if self.children == []:
+			return None
+
+		nextnode = self.children[0]
+		if nextnode.board == None or nextnode.scoreMean() == None:
+			return None
+		turn = self.getTurn(current=False)
+		loss = Board.getSign(turn) * (nextnode.scoreMean() - self.scoreMean())
+		pla, i, j = nextnode.move
+		print("{} MOVE {} loss: {:.2f}".format(pla, coordToStd(i, j), loss))
+		
+		return nextnode.scoreMean(normalized=normalized) \
+			- self.scoreMean(normalized=normalized)
+
+	def guessLevel(self, lookpla=Board.BLACK, normalized=True):
+		"""Guess the level of a player"""
+		scores = self.getScoreSeq(normalized=normalized)
+		pla = self.getTurn() if len(scores) % 2 == 1 \
+			else Board.getOpponent(self.getTurn())
+		if len(scores) < 2: return None
+		
+		lvl = 0
+		movnum = 0
+		for i in range(len(scores)-1):
+			loss = scores[i+1] - scores[i]
+			coloredloss = loss * Board.getSign(pla)
+			if pla == lookpla:
+				lvl += coloredloss
+				movnum += 1
+			pla = Board.getOpponent(pla)
+		return LVLMUL * lvl / movnum

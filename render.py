@@ -206,6 +206,45 @@ def circ_mark(x, y, owner):
 	r = STONE_RADIUS // 2
 	gfx.aacircleRGBA(renderer, x, y, r, *border)
 
+def drawScoreList(scores):
+	if len(scores) <= 1: return None
+
+	GLOW_WHITE = (255, 255, 255, 125)
+	srWidth = WIDTH//3
+	srHeight = CONTROLS	
+	fillrect(0, HEIGHT - CONTROLS + 1, srWidth, CONTROLS, GRAY(50))
+	m = min(-5, min(scores)) - 1
+	M = max(5, max(scores)) + 1
+	num = len(scores)
+	dx = srWidth / (num - 1)
+
+	x = 0
+	prevx = None
+	prevy = None
+
+	middle = int(HEIGHT - CONTROLS * m / (m - M) + 1)
+	line(0, middle, srWidth, middle, GRAY(192))
+
+	five = 5 * (m // 5)
+	while five <= M:
+		l = (five - m) / (M - m)
+		y = int(HEIGHT - CONTROLS * l + 1)
+		line(0, y, srWidth, y, GLOW_WHITE)
+		five += 5
+
+	for i, score in enumerate(scores):
+		l = (score - m) / (M - m)
+		y = int(HEIGHT - CONTROLS * l + 1)
+		x = int(i * dx)
+		if prevx != None:
+			delta = (y - prevy) / dx
+			v = prevy
+			for u in range(prevx, x):
+				line(u, middle, u, int(v), GLOW_WHITE)
+				v += delta	 
+			# line(prevx, prevy, x, y, GRAY(0))
+		prevx, prevy = x, y
+
 
 # Draw a sequence of moves
 def draw_moves(moves, pla, limit=25):
@@ -368,7 +407,8 @@ def render(board, history, coord=None):
 	# Rendering Hints & variations
 	if SHOW_DEAD_STONES: draw_dead_stones(board)
 	render_hints(pv, turn=history.getTurn(), coord=coord)
-
+	drawScoreList(history.getScoreSeq())
+	
 	SDL_RenderPresent(renderer)
 
 # Init board, katago and history
@@ -379,15 +419,18 @@ def init(SDL_KATAGO, path=None):
 		board = Board(size=19)
 		kata = KataGo(SDL_KATAGO)
 		history = Node(kata)
+		history._getRoot().setBoard(board)
 		kata.setBoardsize(19)
 		kata.setKomi(7.5)
 
 	else:
+		print("Loading {} ...".format(path))
 		gdata, setup, moves, rules = sgffiles.load_sgf_moves(path)
 
 		board = Board(size=gdata.size)
 		kata = KataGo(SDL_KATAGO)
 		history = Node(kata)
+		history._setCurrentBoard(board)
 		kata.setBoardsize(gdata.size)
 		kata.setKomi(gdata.komi)
 
@@ -398,9 +441,11 @@ def init(SDL_KATAGO, path=None):
 		history = history.setRootHere()
 		
 		for pla, i, j in moves:
+			if (i, j) == (-1, -1): break
 			history.playMove(board, i, j, pla, transmit=False)
 		history.goToRoot()
 		board = history.getCurrentBoard()
+		print("{} loaded successfully.".format(path))
 
 	kata.analyse(ttime=100)
 
@@ -509,6 +554,82 @@ def run():
 
 		render(board, history, lastCoord)
 
+	print("Closing KataGo")
+	kata.close()
+	print("Katago closed, closing everything else")
+	SDL_DestroyRenderer(renderer)
+	SDL_DestroyWindow(window)
+	SDL_Quit()
+
+
+def analyse():
+
+	path = sys.argv[1]
+
+	SDL_Init(SDL_INIT_VIDEO)
+	TTF_Init()
+
+	global font
+	global tinyfont
+	global renderer
+	global SHOW_BLACK_HINTS
+	global SHOW_WHITE_HINTS
+	global SHOW_HEAT_MAP
+	global SHOW_DEAD_STONES
+
+	SHOW_HEAT_MAP = False
+
+	window = SDL_CreateWindow("KataGo Analyzer".encode(),
+		SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
+		WIDTH, HEIGHT, SDL_WINDOW_SHOWN)
+	renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED)
+	font = TTF_OpenFont(b"DejaVuSans.ttf", 13)
+	tinyfont = TTF_OpenFont(b"DejaVuSans.ttf", 7)
+
+	SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, b'1')
+
+	# Creating SDL_Events for Katago
+	SDL_KATAGO = SDL_RegisterEvents(1)
+
+	# Initialise board & katago
+	board, kata, history = init(SDL_KATAGO, path)
+	
+	running = True
+	event = SDL_Event()	
+	
+	lastCoord = None
+	render(board, history)
+	while running:
+		# Event loop
+		if board == None:
+			break
+		
+		SDL_WaitEvent(event)
+		if event.type == SDL_QUIT:
+			running = False
+			break
+		elif event.type == SDL_KATAGO:
+			if kata.lastAnalyse:
+				infos, heatInfos = kata.lastAnalyse
+				# skip if event key is out of date
+				if kata.key != kata.lastEventKey: continue 
+				if history.getTurn() == Board.WHITE: heatInfos = -heatInfos
+				history.updPV(infos)
+				board.loadHeatFromArray(heatInfos)
+				render(board, history, lastCoord)
+				history.setBoard(board) # save current board
+				try:
+					print("TMP Level guess: BLACK {:.2f} WHITE {:.2f}".format(
+					history.guessLevel(Board.BLACK), history.guessLevel(Board.WHITE)))	
+				except:
+					print("TMP Level guess: too soon to say")
+				board = history.goForward(transmit=True, analyse=True)
+		else: # performances +++ 
+			continue
+
+
+	print("Level guess: BLACK", history.guessLevel(), ", WHITE",
+		history.guessLevel(2))
 	print("Closing KataGo")
 	kata.close()
 	print("Katago closed, closing everything else")

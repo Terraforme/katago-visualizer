@@ -31,7 +31,7 @@ def parseLine(line):
 		elif tok == "scoreMean":
 			i, tok = i+1, txt[i+1]
 			scoreMean = float(tok)
-		elif tok == "scoreStDev":
+		elif tok == "scoreStdev":
 			i, tok = i+1, txt[i+1]
 			scoreStDev = float(tok)
 		elif tok == "pv":
@@ -77,7 +77,8 @@ class KataGo:
 	on your computer."""
 
 	BIN = "../KataGo/cpp/main"
-	STDMODEL = "../KataGo/cpp/models/g103-b6c96-s103408384-d26419149.txt.gz"
+	#STDMODEL = "../KataGo/cpp/models/g103-b6c96-s103408384-d26419149.txt.gz"
+	STDMODEL = "../KataGo/cpp/models/g104-b6c96-s97778688-d23397744/model.txt.gz"
 	CONFIG = "gtp_analysis.cfg"
 	THINKING_TIME = 1000 # in centiseconds
 	ANALYSIS_CMD = "kata-analyze interval {} ownership true"

@@ -142,8 +142,8 @@ class Board:
 		oldpla = self.turn
 		if not pla: pla = self.turn
 		if not self.isLegal(i, j, pla):
-			raise(Exception("Move {} is illegal".format(
-				coordToStd(i, j, self.size))))
+			raise(Exception("Move {} is illegal ({}, {})".format(
+				coordToStd(i, j, self.size), i, j)))
 		cap = self.captured(i, j, pla)
 		for chain in cap:
 			for u, v in chain:
