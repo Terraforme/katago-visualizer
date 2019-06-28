@@ -532,7 +532,11 @@ def treatInput(event, board, kata, history, inputs):
 			SHOW_DEAD_STONES = not SHOW_DEAD_STONES
 
 		elif event.key.keysym.sym == SDLK_g:
-			history.getSeqToCurrent()
+			txt = history.getSeqToCurrent()
+			myfile = open("test.log", "w")
+			print(txt, file=myfile)
+			myfile.close()
+			print("Written description at test.log")
 
 		elif event.key.keysym.sym == SDLK_l:
 			txt = input("Load move sq:")

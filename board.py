@@ -35,7 +35,11 @@ def coordToStd(i, j, size=19):
 
 def stdToCoord(txt, size=19):
 	"""Convert a move from its standard format to coordinates"""
-	j = Board.ROWS.index(txt[0])
+	try:
+		j = Board.ROWS.index(txt[0])
+	except:
+		raise Exception("failed on {}".format(txt[0]))
+
 	i = size - int(txt[1:])
 	return i, j
 

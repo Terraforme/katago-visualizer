@@ -1,4 +1,5 @@
 from board import *
+from katago import parseLine
 
 TTIME = 100
 LVLMUL = 100
@@ -112,11 +113,42 @@ class Node:
 		"""Return current score according to last analysis"""
 		return self._getCurrent().scoreMean()
 
+	def extraInfoStr(self):
+		"""Return a string corresponding to the current information.
+		Format is such that it can be parsed using katago.parseLine()."""
+		pv = self._getCurrent().getPV()
+		if pv == None: return ""
+
+		## Normal informations
+		txt = ""
+		for visits, winrate, scoreMean, scoreStdev, moves in pv:
+			txt += "info {} visits {} winrate {} scoreMean {} scoreStdev {} ".format(
+				coordToStd(*moves[0]), visits, winrate, scoreMean, scoreStdev)
+			txt += "pv "
+			for i, j in moves:
+				txt += "{} ".format(coordToStd(i, j))
+
+		## Ownership
+		txt += "ownership "
+		board = self._getCurrent().board
+		heat = board.heat
+		for i in range(19):
+			for j in range(19):
+				loc = "{} ".format(heat[j][i])
+				txt += loc
+
+		return txt
+
 	def fromSeqTxt(self, txt, format="std"):
 		"""Little sister of getSeqToCurrent. Read it for more infos."""
 		self.goToRoot(transmit=True)
 		board = self._getCurrent().board
-		txt = txt.split(";")
+		if txt == "": return None
+
+		txt = txt.split("#")
+		extrainfos = txt[1]
+		print(extrainfos)
+		txt = txt[0].split(";")
 		for movtxt in txt:
 			if movtxt == "": break
 			movtxt = movtxt.split(".")
@@ -128,7 +160,12 @@ class Node:
 				self.playMove(board, i, j, c, transmit=True, analyse=False)
 			else:
 				raise Exception("Please finish implementation of fromSeqTxt")
-		self.startAnalyse()
+
+		infos, heatInfos = parseLine(extrainfos)
+		self.updPV(infos)
+		self.getCurrentBoard().loadHeatFromArray(heatInfos)
+
+		#self.startAnalyse()
 		print("Loaded sequence.")
 
 	def getSeqToCurrent(self, format="std"):
@@ -154,7 +191,9 @@ class Node:
 			if format == "std":
 				c = "B" if pla == Board.BLACK else "W"
 				res += "{}.{};".format(c, coordToStd(i, j))
-		print(res)
+		
+		res += "#" + self.extraInfoStr()
+		return res
 
 
 	def getScoreSeq(self, normalized=False):
@@ -276,6 +315,7 @@ class Node:
 		self.playBoard(board)
 		self._getRoot().katago.key = self.getCurrentBoard().key
 		self._getCurrent().move = pla, i, j
+		self._ge
 		return self._getCurrent().board
 
 	def goToRoot(self, transmit=False):
