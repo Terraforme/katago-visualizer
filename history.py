@@ -29,6 +29,10 @@ class Node:
 		for child in self.children:
 			child.print()
 
+	def startAnalyse(self, ttime=TTIME):
+		self._getRoot().katago.stop()
+		self._getRoot().katago.analyse(ttime)
+
 	def setBoard(self, board, current=False):
 		if current:
 			self._getCurrent().board = board.copy()
@@ -110,7 +114,7 @@ class Node:
 
 	def fromSeqTxt(self, txt, format="std"):
 		"""Little sister of getSeqToCurrent. Read it for more infos."""
-		self.goToRoot()
+		self.goToRoot(transmit=True)
 		board = self._getCurrent().board
 		txt = txt.split(";")
 		for movtxt in txt:
@@ -121,9 +125,10 @@ class Node:
 			if format == "std":
 				c = Board.BLACK if c == "B" else Board.WHITE
 				i, j = stdToCoord(mov)
-				self.playMove(board, i, j, c, transmit=True, analyse=True)
+				self.playMove(board, i, j, c, transmit=True, analyse=False)
 			else:
 				raise Exception("Please finish implementation of fromSeqTxt")
+		self.startAnalyse()
 		print("Loaded sequence.")
 
 	def getSeqToCurrent(self, format="std"):
