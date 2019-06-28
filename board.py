@@ -87,8 +87,8 @@ class Board:
 		"""Return a copy of the board"""
 		size = self.size
 		cpy = Board(size=size)
-		cpy.stones = self.stones.copy()
-		cpy.heat = self.heat.copy()
+		cpy.stones = np.matrix.copy(self.stones)
+		cpy.heat = np.matrix.copy(self.heat)
 		cpy.key = self.key
 		return cpy
 

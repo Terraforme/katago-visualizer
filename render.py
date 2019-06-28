@@ -440,7 +440,7 @@ def init(SDL_KATAGO, path=None):
 		board = Board(size=19)
 		kata = KataGo(SDL_KATAGO)
 		history = Node(kata)
-		history._getRoot().setBoard(board)
+		history._getRoot().setBoard(board, current=False)
 		kata.setBoardsize(19)
 		kata.setKomi(7.5)
 
@@ -510,13 +510,13 @@ def treatInput(event, board, kata, history, inputs):
 	elif event.type == SDL_KEYDOWN:
 		srender = True
 		if event.key.keysym.sym == SDLK_RIGHT:
-			history.setBoard(board) # save current board
+			history.setBoard(board, current=True) # save current board
 			board = history.goForward(transmit=True, analyse=True)
 			if board == None:
 				board = history.getCurrentBoard()
 
 		elif event.key.keysym.sym == SDLK_LEFT:
-			history.setBoard(board) # save current board
+			history.setBoard(board, current=True) # save current board
 			board = history.undo(transmit=True, analyse=True)
 
 		elif event.key.keysym.sym == SDLK_w:
@@ -533,6 +533,10 @@ def treatInput(event, board, kata, history, inputs):
 
 		elif event.key.keysym.sym == SDLK_g:
 			history.getSeqToCurrent()
+
+		elif event.key.keysym.sym == SDLK_l:
+			txt = input("Load move sq:")
+			history.fromSeqTxt(txt)
 
 	## MOUSE MOTION - do not always render
 	elif event.type == SDL_MOUSEMOTION:
@@ -561,7 +565,7 @@ def treatInput(event, board, kata, history, inputs):
 		if event.button.button == SDL_BUTTON_LEFT:
 			if lastCoord != None:
 				i, j = lastCoord
-				history.setBoard(board) # save current board
+				history.setBoard(board, current=True) # save current board
 				try:
 					history.playMove(board, i, j, history.getTurn(), transmit=True, analyse=True)
 					board = history.getCurrentBoard()
@@ -570,7 +574,7 @@ def treatInput(event, board, kata, history, inputs):
 					print("This move is illegal")
 		elif event.button.button == SDL_BUTTON_RIGHT:
 			srender = True
-			history.setBoard(board) # save current board
+			history.setBoard(board, current=True) # save current board
 			board = history.undo(transmit=True, analyse=True)
 
 	return srun, srender

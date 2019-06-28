@@ -29,8 +29,11 @@ class Node:
 		for child in self.children:
 			child.print()
 
-	def setBoard(self, board):
-		self.board = board.copy()
+	def setBoard(self, board, current=False):
+		if current:
+			self._getCurrent().board = board.copy()
+		else:
+			self.board = board.copy()
 
 	def _setCurrentBoard(self, board):
 		"""Copy the current board at 'current'"""
@@ -108,17 +111,20 @@ class Node:
 	def fromSeqTxt(self, txt, format="std"):
 		"""Little sister of getSeqToCurrent. Read it for more infos."""
 		self.goToRoot()
+		board = self._getCurrent().board
 		txt = txt.split(";")
 		for movtxt in txt:
-			movtxt = txt.split(".")
+			if movtxt == "": break
+			movtxt = movtxt.split(".")
 			c = movtxt[0]
 			mov = movtxt[1]
 			if format == "std":
 				c = Board.BLACK if c == "B" else Board.WHITE
 				i, j = stdToCoord(mov)
-				history.playMove(c, i, j, transmit=True, analyse=True)
+				self.playMove(board, i, j, c, transmit=True, analyse=True)
 			else:
-				raise Exception("Please end implementation of fromSeqTxt")
+				raise Exception("Please finish implementation of fromSeqTxt")
+		print("Loaded sequence.")
 
 	def getSeqToCurrent(self, format="std"):
 		"""Return the sequence of moves to current position in a text format.
@@ -212,7 +218,7 @@ class Node:
 		node.parent = self._getCurrent()
 		node.root = self._getRoot()
 		node.current = self._getCurrent()
-		node.setBoard(board)
+		node.setBoard(board, current=False)
 		self._getCurrent().children.append(node)
 		
 	def goForward(self, ttime=TTIME, transmit=True, analyse=True):
@@ -241,7 +247,9 @@ class Node:
 				self._getRoot().katago.undo()
 				if analyse: self._getRoot().katago.analyse(ttime)
 				self._getRoot().katago.key = self.getCurrentBoard().key
-		return self.getCurrentBoard()
+			return self.getCurrentBoard()
+		else:
+			return self._getRoot().board
 
 	def playBoard(self, board):
 		"""Move to a children. If it does not exists, create it."""
@@ -253,6 +261,7 @@ class Node:
 
 	def playMove(self, board, i, j, pla, transmit=True, analyse=True, ttime=TTIME):
 		"""Play a move on a board and add it in the history"""
+		
 		self._getCurrent().setBoard(board) # save the current board
 		board.playStone(i, j, pla)
 		if transmit: 
@@ -262,6 +271,7 @@ class Node:
 		self.playBoard(board)
 		self._getRoot().katago.key = self.getCurrentBoard().key
 		self._getCurrent().move = pla, i, j
+		return self._getCurrent().board
 
 	def goToRoot(self, transmit=False):
 		"""Set current as root"""

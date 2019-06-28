@@ -10,5 +10,7 @@ If you specify a path to a sgf file, the lattest will be loaded.
 - Press `d` to switch on/off dead stones guessing
 - Press `b` to switch on/off black's hints
 - Press `w` to switch on/off white's hints
+- Press `g` to generate the sequence to current position
+- Press `l` to load a sequence (watch your terminal !)
 
 Use arrows keys and mouse to navigate in the app.
