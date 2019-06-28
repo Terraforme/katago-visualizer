@@ -105,6 +105,47 @@ class Node:
 		"""Return current score according to last analysis"""
 		return self._getCurrent().scoreMean()
 
+	def fromSeqTxt(self, txt, format="std"):
+		"""Little sister of getSeqToCurrent. Read it for more infos."""
+		self.goToRoot()
+		txt = txt.split(";")
+		for movtxt in txt:
+			movtxt = txt.split(".")
+			c = movtxt[0]
+			mov = movtxt[1]
+			if format == "std":
+				c = Board.BLACK if c == "B" else Board.WHITE
+				i, j = stdToCoord(mov)
+				history.playMove(c, i, j, transmit=True, analyse=True)
+			else:
+				raise Exception("Please end implementation of fromSeqTxt")
+
+	def getSeqToCurrent(self, format="std"):
+		"""Return the sequence of moves to current position in a text format.
+		The format is ([pla].[move];)*
+		- format : "std" for standard - pla is 'B' or 'W' and move is standard
+		and "coord" for coordinates with pla being '1' or '2' and move 
+		is coordinates '([row],[col])'. """
+		cur = self._getCurrent()
+		root = self._getRoot()
+		moves = []
+		while True:
+			if cur.move != None:
+				moves.append(cur.move)
+			if cur == root or cur == cur.parent: break
+			cur = cur.parent
+		moves.reverse()
+
+		res = ""
+		for pla, i, j in moves:
+			if format == "coord": 
+				res += "{}.({},{});".format(pla, i, j)
+			if format == "std":
+				c = "B" if pla == Board.BLACK else "W"
+				res += "{}.{};".format(c, coordToStd(i, j))
+		print(res)
+
+
 	def getScoreSeq(self, normalized=False):
 		"""Return the list of score from root to current"""
 		cur = self._getCurrent()

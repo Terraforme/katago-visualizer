@@ -531,6 +531,9 @@ def treatInput(event, board, kata, history, inputs):
 		elif event.key.keysym.sym == SDLK_d:
 			SHOW_DEAD_STONES = not SHOW_DEAD_STONES
 
+		elif event.key.keysym.sym == SDLK_g:
+			history.getSeqToCurrent()
+
 	## MOUSE MOTION - do not always render
 	elif event.type == SDL_MOUSEMOTION:
 		lastCoord = inputs.getCoordinates()
