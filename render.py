@@ -9,6 +9,7 @@ from sdl2.sdlttf import *
 import sdl2.sdlgfx as gfx
 from math import cos, sin, pi
 import time
+
 #
 #  Board layout parameters
 #
@@ -75,10 +76,30 @@ renderer = None
 # Font for rendering, loaded from a TTF.
 font = None
 tinyfont = None
+# SDL event for KataGO
+SDL_KATAGO = None
+
 
 # Row names
 ROWS = "ABCDEFGHJKLMNOPQRST"
 
+# A class to make input management easier
+class Inputs:
+	
+	def __init__(self):
+		self.mousex = None
+		self.mousey = None
+
+	# set mouse coordinates
+	def setMouse(self, x, y):
+		self.mousex, self.mousey = x, y
+
+	# Convert mouse coordinates to board coordinates
+	def getCoordinates(self):
+		if self.mousex == None or self.mousey == None: return None
+		coord = getCoordinates(self.mousex, self.mousey)
+		if coord == None: return None
+		return coord
 #
 #  Coordinate abstraction
 #  The following functions calculate coordinates.
@@ -210,7 +231,7 @@ def drawScoreList(scores):
 	if len(scores) <= 1: return None
 
 	GLOW_WHITE = (255, 255, 255, 125)
-	srWidth = WIDTH//3
+	srWidth = WIDTH//2
 	srHeight = CONTROLS	
 	fillrect(0, HEIGHT - CONTROLS + 1, srWidth, CONTROLS, GRAY(50))
 	m = min(-5, min(scores)) - 1
@@ -356,7 +377,7 @@ def render(board, history, coord=None):
 	clear(WHITE)
 	fillrect(0, HEIGHT - CONTROLS + 1, WIDTH, CONTROLS, GRAY(192))
 
-	text(WIDTH // 2, HEIGHT - CONTROLS // 2, "KataGo Analyzer", BLACK)
+	text(3 * WIDTH // 4, HEIGHT - CONTROLS // 2, "KataGo Analyzer", BLACK)
 
 	# Heat map
 	if SHOW_HEAT_MAP:
@@ -451,133 +472,120 @@ def init(SDL_KATAGO, path=None):
 
 	return board, kata, history
 
-def run():
+# Treat an input
+# - event : last SDL_event
+# - board : game board
+# - kata : KataGo object
+# - history : Historic
+# - input : Input object
+# Output is a tuple (srun, srender)
+# - srun : is set to True if the app has to be stoped
+# - srender : is set to True if the app has to be re-rendered
+# Caution: the board is not always modified. You MUST re-get it with a 
+# board = history.getCurrentBoard()
 
-	# Asking the user to load a game
-	path = sys.argv[1] if len(sys.argv) > 1 else None
+def treatInput(event, board, kata, history, inputs):
 
-	SDL_Init(SDL_INIT_VIDEO)
-	TTF_Init()
-
-	global font
-	global tinyfont
-	global renderer
 	global SHOW_BLACK_HINTS
 	global SHOW_WHITE_HINTS
 	global SHOW_HEAT_MAP
 	global SHOW_DEAD_STONES
 
-	window = SDL_CreateWindow("KataGo Analyzer".encode(),
-		SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
-		WIDTH, HEIGHT, SDL_WINDOW_SHOWN)
-	renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED)
-	font = TTF_OpenFont(b"DejaVuSans.ttf", 13)
-	tinyfont = TTF_OpenFont(b"DejaVuSans.ttf", 7)
+	srun, srender = True, False
+	if event.type == SDL_QUIT:
+			srun = False
 
-	SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, b'1')
-
-	# Creating SDL_Events for Katago
-	SDL_KATAGO = SDL_RegisterEvents(1)
-
-	# Initialise board & katago
-	board, kata, history = init(SDL_KATAGO, path)
-	
-	running = True
-	event = SDL_Event()	
-	
-	lastCoord = None
-	render(board, history)
-	while running:
-		# Event loop
-		
-		SDL_WaitEvent(event)
-		if event.type == SDL_QUIT:
-			running = False
-			break
-		elif event.type == SDL_KATAGO:
-			if kata.lastAnalyse:
-				infos, heatInfos = kata.lastAnalyse
-				# skip if event key is out of date
-				if kata.key != kata.lastEventKey: continue 
-				if history.getTurn() == Board.WHITE: heatInfos = -heatInfos
+	## KATAGO
+	elif event.type == SDL_KATAGO:
+		if kata.lastAnalyse:
+			infos, heatInfos = kata.lastAnalyse
+			# skip if event key is out of date - FIXME not the best solution
+			if kata.key == kata.lastEventKey: 
+				heatInfos = Board.getSign(history.getTurn(current=True)) * heatInfos
 				history.updPV(infos)
 				board.loadHeatFromArray(heatInfos)
-		elif event.type == SDL_KEYDOWN: # Keyboard
-			if event.key.keysym.sym == SDLK_RIGHT:
-				history.setBoard(board) # save current board
-				board = history.goForward(transmit=True, analyse=True)
-				if board == None:
-					board = history.getCurrentBoard()
-			elif event.key.keysym.sym == SDLK_LEFT:
-				history.setBoard(board) # save current board
-				board = history.undo(transmit=True, analyse=True)
-			elif event.key.keysym.sym == SDLK_w:
-				SHOW_WHITE_HINTS = not SHOW_WHITE_HINTS
-			elif event.key.keysym.sym == SDLK_b:
-				SHOW_BLACK_HINTS = not SHOW_BLACK_HINTS
-			elif event.key.keysym.sym == SDLK_h:
-				SHOW_HEAT_MAP = not SHOW_HEAT_MAP
-			elif event.key.keysym.sym == SDLK_d:
-				SHOW_DEAD_STONES = not SHOW_DEAD_STONES
-			else: # for performance reasons
-				continue
-		elif event.type == SDL_MOUSEMOTION:
-			x, y = ctypes.c_int(0), ctypes.c_int(0)
-			buttonState = SDL_GetMouseState(ctypes.byref(x), ctypes.byref(y))
-			x, y = x.value, y.value
-			coord = getCoordinates(x, y)
-			if not coord: 
-				lastCoord = None
-				continue # performances !
-			else:
-				if not lastCoord: lastCoord = coord
-				elif lastCoord == coord: continue # performances !
-				else:
-					lastCoord = coord
-		elif event.type == SDL_MOUSEBUTTONDOWN:
-			if event.button.button == SDL_BUTTON_LEFT:
-				if not lastCoord: continue
+				srender = True
+
+	## KEYBOARD - always render
+	elif event.type == SDL_KEYDOWN:
+		srender = True
+		if event.key.keysym.sym == SDLK_RIGHT:
+			history.setBoard(board) # save current board
+			board = history.goForward(transmit=True, analyse=True)
+			if board == None:
+				board = history.getCurrentBoard()
+
+		elif event.key.keysym.sym == SDLK_LEFT:
+			history.setBoard(board) # save current board
+			board = history.undo(transmit=True, analyse=True)
+
+		elif event.key.keysym.sym == SDLK_w:
+			SHOW_WHITE_HINTS = not SHOW_WHITE_HINTS
+
+		elif event.key.keysym.sym == SDLK_b:
+			SHOW_BLACK_HINTS = not SHOW_BLACK_HINTS
+
+		elif event.key.keysym.sym == SDLK_h:
+			SHOW_HEAT_MAP = not SHOW_HEAT_MAP
+
+		elif event.key.keysym.sym == SDLK_d:
+			SHOW_DEAD_STONES = not SHOW_DEAD_STONES
+
+	## MOUSE MOTION - do not always render
+	elif event.type == SDL_MOUSEMOTION:
+		lastCoord = inputs.getCoordinates()
+		
+		x, y = ctypes.c_int(0), ctypes.c_int(0)
+		buttonState = SDL_GetMouseState(ctypes.byref(x), ctypes.byref(y))
+		x, y = x.value, y.value
+
+		inputs.setMouse(x, y)
+		coord = inputs.getCoordinates()
+			
+		# Check if we need to render
+		# Be cautious there otherwise we will rerender each time the mouse
+		# moves
+		if lastCoord == None: lastCoord = -2, -2
+		if coord == None: coord = -2, -2
+		lastmoveInfo = history.getMoveInfo(*lastCoord)
+		moveInfo = history.getMoveInfo(*coord)
+		if lastmoveInfo != None or moveInfo != None:
+			srender = True
+
+	## MOUSE BUTTONS 
+	elif event.type == SDL_MOUSEBUTTONDOWN:
+		lastCoord = inputs.getCoordinates()
+		if event.button.button == SDL_BUTTON_LEFT:
+			if lastCoord != None:
 				i, j = lastCoord
 				history.setBoard(board) # save current board
 				try:
 					history.playMove(board, i, j, history.getTurn(), transmit=True, analyse=True)
 					board = history.getCurrentBoard()
+					srender = True
 				except:
 					print("This move is illegal")
-			elif event.button.button == SDL_BUTTON_RIGHT:
-				history.setBoard(board) # save current board
-				board = history.undo(transmit=True, analyse=True)
-			else: # PERFOOOORMANNNNCES 
-				continue
-		else: # performances +++ 
-			continue
+		elif event.button.button == SDL_BUTTON_RIGHT:
+			srender = True
+			history.setBoard(board) # save current board
+			board = history.undo(transmit=True, analyse=True)
 
-		render(board, history, lastCoord)
+	return srun, srender
 
-	print("Closing KataGo")
-	kata.close()
-	print("Katago closed, closing everything else")
-	SDL_DestroyRenderer(renderer)
-	SDL_DestroyWindow(window)
-	SDL_Quit()
+# Main function
+# run the katago-analyzer app.
 
+def run():
 
-def analyse():
-
-	path = sys.argv[1]
-
-	SDL_Init(SDL_INIT_VIDEO)
-	TTF_Init()
+	path = sys.argv[1] if len(sys.argv) > 1 else None
 
 	global font
 	global tinyfont
 	global renderer
-	global SHOW_BLACK_HINTS
-	global SHOW_WHITE_HINTS
-	global SHOW_HEAT_MAP
-	global SHOW_DEAD_STONES
+	global SDL_KATAGO
 
-	SHOW_HEAT_MAP = False
+	SDL_Init(SDL_INIT_VIDEO)
+	TTF_Init()
 
 	window = SDL_CreateWindow("KataGo Analyzer".encode(),
 		SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
@@ -591,45 +599,22 @@ def analyse():
 	# Creating SDL_Events for Katago
 	SDL_KATAGO = SDL_RegisterEvents(1)
 
-	# Initialise board & katago
+	# Initialise board & katago & inputs
 	board, kata, history = init(SDL_KATAGO, path)
-	
-	running = True
+	inputs = Inputs()
+
 	event = SDL_Event()	
-	
-	lastCoord = None
 	render(board, history)
-	while running:
+	while True:
 		# Event loop
-		if board == None:
-			break
 		
 		SDL_WaitEvent(event)
-		if event.type == SDL_QUIT:
-			running = False
-			break
-		elif event.type == SDL_KATAGO:
-			if kata.lastAnalyse:
-				infos, heatInfos = kata.lastAnalyse
-				# skip if event key is out of date
-				if kata.key != kata.lastEventKey: continue 
-				if history.getTurn() == Board.WHITE: heatInfos = -heatInfos
-				history.updPV(infos)
-				board.loadHeatFromArray(heatInfos)
-				render(board, history, lastCoord)
-				history.setBoard(board) # save current board
-				try:
-					print("TMP Level guess: BLACK {:.2f} WHITE {:.2f}".format(
-					history.guessLevel(Board.BLACK), history.guessLevel(Board.WHITE)))	
-				except:
-					print("TMP Level guess: too soon to say")
-				board = history.goForward(transmit=True, analyse=True)
-		else: # performances +++ 
-			continue
+		srun, srender = treatInput(event, board, kata, history, inputs)
+		if not srun: break
+		if srender:
+			board = history.getCurrentBoard()
+			render(board, history, inputs.getCoordinates())
 
-
-	print("Level guess: BLACK", history.guessLevel(), ", WHITE",
-		history.guessLevel(2))
 	print("Closing KataGo")
 	kata.close()
 	print("Katago closed, closing everything else")

@@ -3,6 +3,15 @@ from board import *
 TTIME = 100
 LVLMUL = 100
 
+
+def cumulate(a):
+	"""Return the averaged cumulation array of a"""
+	n = len(a)
+	b = [0 for i in range(n)]
+	for i in range(n):
+		b[i] = (i*b[i-1] + a[i])/(i+1)
+	return b
+
 class Node:
 
 	def __init__(self, katago):
@@ -74,7 +83,7 @@ class Node:
 		pv = self.pv
 		if pv == []: return None
 		visits, winrate, scoreMean, scoreStDev, moves = pv[0]
-		if scoreStDev == 0: scoreStDev = 1
+		if scoreStDev <= 10: scoreStDev = 10
 		turn = self.getTurn(current=False)
 		if absolute:
 			val = - scoreMean * Board.getSign(turn)
@@ -85,6 +94,12 @@ class Node:
 			return val / scoreStDev
 		else:
 			return val
+
+	def scoreStdev(self):
+		pv = self.pv
+		if pv == []: return None
+		visits, winrate, scoreMean, scoreStdev, moves = pv[0]
+		return scoreStdev
 
 	def getCurrentScoreMean(self):
 		"""Return current score according to last analysis"""
@@ -106,6 +121,22 @@ class Node:
 		scores.pop()
 		return scores
 
+	def getScoreStdevSeq(self):
+		"""Return the list of scoreStDev form root to current"""
+		cur = self._getCurrent()
+		root = self._getRoot()
+		seqStdev = [0]
+		while True:
+			scoreStdev = cur.scoreStdev()
+			if not scoreStdev: scoreStdev = seqStdev[-1]
+			seqStdev.append(scoreStdev)
+			if cur == root or cur == cur.parent: break
+			cur = cur.parent
+		
+		seqStdev.reverse()
+		seqStdev.pop()
+		return seqStdev
+
 	def getTurn(self, current=True):
 		move = self.getLastMove() if current else self.getPrevMove()
 		if not move: return Board.BLACK
@@ -116,6 +147,15 @@ class Node:
 	def getPV(self):
 		"""Return current main variations"""
 		return self._getCurrent().pv
+
+	def getMoveInfo(self, i, j, ceil=10):
+		"""Return information (if some) on the current move"""
+		pvs = self.getPV()
+		if pvs == None: return None
+		for visits, winrate, scoreMean, scoreStDev, moves in pvs:
+			if moves[0] == (i, j):
+				return visits, winrate, scoreMean, scoreStDev, moves
+		return None
 
 	def updPV(self, pv):
 		"""Update current principal variations"""
@@ -206,20 +246,31 @@ class Node:
 		return nextnode.scoreMean(normalized=normalized) \
 			- self.scoreMean(normalized=normalized)
 
-	def guessLevel(self, lookpla=Board.BLACK, normalized=True):
+	def guessLevel(self, lookpla=Board.BLACK, normalized=True, forgetBarrier=0.5):
 		"""Guess the level of a player"""
-		scores = self.getScoreSeq(normalized=normalized)
+		losses = self.getLossList(lookpla, normalized, forgetBarrier)
+		# print("Loss:", np.array(losses))
+		return LVLMUL * cumulate(losses)[-1]
+
+
+	def getLossList(self, lookpla, normalized=True, forgetBarrier=0.5):
+		"""Return the list of losses for a player"""
+		scores = self.getScoreSeq(normalized=False)
+		stdev = self.getScoreStdevSeq()
+		# print("scores:", np.array(scores), "\nstdev:", np.array(stdev))
 		pla = self.getTurn() if len(scores) % 2 == 1 \
 			else Board.getOpponent(self.getTurn())
 		if len(scores) < 2: return None
 		
-		lvl = 0
-		movnum = 0
+		losses = []
 		for i in range(len(scores)-1):
 			loss = scores[i+1] - scores[i]
+			norm = stdev[i]
+			if abs(loss) < forgetBarrier: loss = 0
+			if normalized: loss /= norm   # normalize loss
 			coloredloss = loss * Board.getSign(pla)
 			if pla == lookpla:
-				lvl += coloredloss
-				movnum += 1
+				losses.append(coloredloss)
 			pla = Board.getOpponent(pla)
-		return LVLMUL * lvl / movnum
+
+		return losses
