@@ -227,8 +227,11 @@ def circ_mark(x, y, owner):
 	r = STONE_RADIUS // 2
 	gfx.aacircleRGBA(renderer, x, y, r, *border)
 
+# Draw the score diagram
+# - scores - list of scores (should be color-constant)
 def drawScoreList(scores):
 	if len(scores) <= 1: return None
+	if not SHOW_BLACK_HINTS or not SHOW_WHITE_HINTS: return None
 
 	GLOW_WHITE = (255, 255, 255, 125)
 	srWidth = WIDTH//2
@@ -268,16 +271,22 @@ def drawScoreList(scores):
 
 
 # Draw a sequence of moves
+# - moves - ordered coordinates list
+# - pla - player playing first in the sequence
 def draw_moves(moves, pla, limit=25):
 	getowner = lambda c: "black" if c == Board.BLACK else "white"
 	getcolor = lambda c: WHITE if c == Board.BLACK else BLACK 
 	for i, (col, row) in enumerate(moves):
+		if i >= limit: break
 		col, row = col + 1, row + 1
 		stone(*inter(row, col), getowner(pla))
 		text(*inter(row, col), str(i+1), color=getcolor(pla))
 		pla = Board.getOpponent(pla)
 
-# Mark dead stones
+# Mark dead stones. Stones are marked according to the heat map.
+# A stone is considered probably dead if it is landing in the opponent's 
+# teritory.
+# board - a board object
 def draw_dead_stones(board):
 	for row in range(1, 20):
 		for col in range(1, 20):
@@ -288,6 +297,9 @@ def draw_dead_stones(board):
 				radius = int((1 + p) * STONE_RADIUS // 3)
 				triangle(*inter(row, col), radius, color)
 
+# Draw a inting stone
+# - intensity - for the alpha-transparency
+# - isFirst - set to Trye to draw a thick read border
 def hint_stone(x, y, intensity=0.5, isFirst=False):
 	r, g, b, a = HINT_COLOR
 	a = int(255 * intensity)
@@ -316,6 +328,7 @@ def adjustStr(txt):
 	if e == 9: return "0.{}G".format(txt[0]) 
 	else: return "Lolwut did you truly made this many visits ?"
 
+# Draw hint_informations - number of visits and score expectation
 def hint_info(x, y, visits, score):
 	visitstr = str(visits)
 	if score > 0: scorestr = "+{:.0f}".format(score)
@@ -360,7 +373,8 @@ def render_hints(pv, turn, coord=None):
 		if i >= HINT_LIMIT: break
 		col, row = moves[0]
 		hint_stone(*inter(row+1, col+1), intensity=visits/maxVisits, isFirst=isFirst)
-		hint_info(*inter(row+1, col+1), visits, scoreMean)
+		if SHOW_BLACK_HINTS and SHOW_WHITE_HINTS:
+			hint_info(*inter(row+1, col+1), visits, scoreMean)
 		isFirst = False
 
 #
@@ -369,52 +383,40 @@ def render_hints(pv, turn, coord=None):
 
 def render(board, history, coord=None):
 
-	# Getting informations
+	## Getting informations
+	# - pla : color of current player 
+	# - pv : principal variation_S_ information
+	# - lmove : coordinates of last move (None of none)
 	pla = history.getTurn()
 	pv = history.getPV()
 	lmove = history.getLastMove()
 
+	## Clear the board - draw mondain rectangles and text
 	clear(WHITE)
 	fillrect(0, HEIGHT - CONTROLS + 1, WIDTH, CONTROLS, GRAY(192))
 
 	text(3 * WIDTH // 4, HEIGHT - CONTROLS // 2, "KataGo Analyzer", BLACK)
 
-	# Heat map
+	## Heat map
 	if SHOW_HEAT_MAP:
 		for row in range(1, 20):
 			for col in range(1, 20):
 				fillrect(*cell_rect(row, col), HEAT(board.heat[row-1][col-1]))
 
+	## Goban lines - Hoshi
 	for i in range(1, 20):
 		line(*inter(1, i), *inter(19, i), GRAY(128))
 		line(*inter(i, 1), *inter(i, 19), GRAY(128))
-
 	for i in [4, 10, 16]:
 		for j in [4, 10, 16]:
 			x, y = inter(i, j)
 			circle(x, y, 3, GRAY(128))
-
+	# Goban boundary
 	line(*inter(1, 1),  *inter(1, 19),  BLACK)
 	line(*inter(1, 19), *inter(19, 19), BLACK)
 	line(*inter(1, 1),  *inter(19, 1),  BLACK)
 	line(*inter(19, 1), *inter(19, 19), BLACK)
-
-	# Stones
-	for row in range(1, 20):
-		for col in range(1, 20):
-			st = board.stones[col - 1][row - 1]
-
-			if st == Board.BLACK:
-				stone(*inter(row, col), "black")
-			elif st == Board.WHITE:
-				stone(*inter(row, col), "white")
-
-	# Mark last move
-	if lmove:
-		pla, col, row = lmove
-		owner = "black" if pla == Board.BLACK else "white"
-		circ_mark(*inter(row+1, col+1), owner)
-
+	# Coordinates
 	for i in range(1, 20):
 		x, y = inter(i, 1)
 		text(x, y - 24, ROWS[i-1], BLACK, align_x="center", align_y="bottom")
@@ -425,17 +427,37 @@ def render(board, history, coord=None):
 		x, y = inter(19, i)
 		text(x + 32, y, str(20-i), BLACK, align_x="center", align_y="center")
 
-	# Rendering Hints & variations
+
+	## Stones
+	for row in range(1, 20):
+		for col in range(1, 20):
+			st = board.stones[col - 1][row - 1]
+
+			if st == Board.BLACK:
+				stone(*inter(row, col), "black")
+			elif st == Board.WHITE:
+				stone(*inter(row, col), "white")
+
+	## Mark last move
+	if lmove:
+		pla, col, row = lmove
+		owner = "black" if pla == Board.BLACK else "white"
+		circ_mark(*inter(row+1, col+1), owner)
+
+	## Rendering Hints & variations & score diagram
 	if SHOW_DEAD_STONES: draw_dead_stones(board)
 	render_hints(pv, turn=history.getTurn(), coord=coord)
-	drawScoreList(history.getScoreSeq())
+	if SHOW_WHITE_HINTS and SHOW_BLACK_HINTS: 
+		drawScoreList(history.getScoreSeq())
 	
 	SDL_RenderPresent(renderer)
 
-# Init board, katago and history
-
+## Init board, katago and history
+# SDL_KATAGO - SDL event corresponding to KataGo's analysis
+# path - optional parameter to import a sgf file
 def init(SDL_KATAGO, path=None):
 
+	## Standard
 	if not path:
 		board = Board(size=19)
 		kata = KataGo(SDL_KATAGO)
@@ -444,6 +466,7 @@ def init(SDL_KATAGO, path=None):
 		kata.setBoardsize(19)
 		kata.setKomi(7.5)
 
+	## Importing a sgf file
 	else:
 		print("Loading {} ...".format(path))
 		gdata, setup, moves, rules = sgffiles.load_sgf_moves(path)
@@ -468,6 +491,7 @@ def init(SDL_KATAGO, path=None):
 		board = history.getCurrentBoard()
 		print("{} loaded successfully.".format(path))
 
+	# Starting KataGo's analysis
 	kata.analyse(ttime=100)
 
 	return board, kata, history
@@ -483,7 +507,6 @@ def init(SDL_KATAGO, path=None):
 # - srender : is set to True if the app has to be re-rendered
 # Caution: the board is not always modified. You MUST re-get it with a 
 # board = history.getCurrentBoard()
-
 def treatInput(event, board, kata, history, inputs):
 
 	global SHOW_BLACK_HINTS
@@ -539,7 +562,7 @@ def treatInput(event, board, kata, history, inputs):
 					myfile = open(path, "a+")
 					print(txt, file=myfile)
 					myfile.close()
-					print("Written description at test.log")
+					print("Written description at {}".format(path))
 					srender = False
 				except:
 					print("Error wile trying to write informations in {}".format(path))
