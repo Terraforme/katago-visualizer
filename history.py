@@ -15,6 +15,41 @@ def cumulate(a):
 
 class Node:
 
+	"""
+	## PROPERTIES
+	Node represent historics. Game historics are rooted and oriented trees.
+	By getting a node with 'a = Node()', one can create a root from where one
+	can access the whole tree. The structure have the following properties:
+
+	- each node can access the root with '_getRoot()'
+	- each node can access its parent with .parent
+	- each node can access its children stored in the list `.children`
+	- there is a token transmitted in the tree. The node having the token is
+	  called "current node" and represents the current position we are at.
+	- the root can access the current node at any time with '_getCurrent()'
+
+	## HOW TO USE
+	
+	One can play a move at the current node with 'playMove()'. If the move is
+	new, the history will be added a new node - otherwise, the token is 
+	given to the according child. Conversly, one can undo a move with 'undo()'.
+
+	To get the current board, one can use 'getCurrentBoard()'. 
+
+	## ABOUT KATAGO & ANALYSIS
+
+	The historic must be initialised with a KataGo object. This KataGo object
+	can be accessed at any time and sent commands - still, the Node class
+	already provides methods that don't require you to think about KataGo when
+	using it - at least most of the time. The historic also stores some analysis
+	informations that KataGo sends. To access the information on the current
+	position, one can do
+
+	- getPV() - to get the principal variation on current node with
+	  attached analysis values.
+	- getCurrentBoard().heat - to get heat informations.
+	"""
+
 	def __init__(self, katago):
 		self.katago = katago
 		self.root = self
@@ -26,15 +61,19 @@ class Node:
 		self.pv = []
 
 	def print(self):
+		"""Print the whole historic"""
 		print(self.board)
 		for child in self.children:
 			child.print()
 
 	def startAnalyse(self, ttime=TTIME):
+		"""Start KataGo's analysis"""
 		self._getRoot().katago.stop()
 		self._getRoot().katago.analyse(ttime)
 
 	def setBoard(self, board, current=False):
+		"""Set the board.
+		- current - precise if we should do it on the current node
 		if current:
 			self._getCurrent().board = board.copy()
 		else:
@@ -194,7 +233,6 @@ class Node:
 		
 		res += "#" + self.extraInfoStr()
 		return res
-
 
 	def getScoreSeq(self, normalized=False):
 		"""Return the list of score from root to current"""
