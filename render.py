@@ -532,15 +532,22 @@ def treatInput(event, board, kata, history, inputs):
 			SHOW_DEAD_STONES = not SHOW_DEAD_STONES
 
 		elif event.key.keysym.sym == SDLK_g:
-			txt = history.getSeqToCurrent()
-			myfile = open("test.log", "a+")
-			print(txt, file=myfile)
-			myfile.close()
-			print("Written description at test.log")
-			srender = False
+			path = input("Write into: ")
+			if path != "":
+				try:
+					txt = history.getSeqToCurrent()
+					myfile = open(path, "a+")
+					print(txt, file=myfile)
+					myfile.close()
+					print("Written description at test.log")
+					srender = False
+				except:
+					print("Error wile trying to write informations in {}".format(path))
+			else:
+				print("Aborted.")
 
 		elif event.key.keysym.sym == SDLK_l:
-			path = input("Path to moves data:")
+			path = input("Path to moves data: ")
 			history.loadFileSequences(path)
 
 		elif event.key.keysym.sym == SDLK_SPACE:

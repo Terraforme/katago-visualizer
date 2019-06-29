@@ -232,7 +232,7 @@ class Node:
 
 		txt = txt.split("@")
 		extrainfos = txt[1]
-		print(extrainfos)
+		# print(extrainfos)
 		txt = txt[0].split(";")
 		for movtxt in txt:
 			if movtxt == "": break
