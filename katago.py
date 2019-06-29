@@ -59,12 +59,12 @@ def parseLine(line):
 # https://stackoverflow.com/questions/375427/non-blocking-read-on-a-subprocess-pipe-in-python
 def enqueue_output(out, katago):
 	for line in iter(out.readline, b''):
+		katago.lastEventKey = katago.key
 		katago.lastAnalyse = parseLine(line.decode())
 		if katago.lastAnalyse: # do not care if this is not relevant info
 			ev = SDL_Event()
 			ev.type = katago.eventID
 			SDL_PushEvent(ev)
-			katago.lastEventKey = katago.key
 	out.close()
 
 class KataGo:

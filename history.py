@@ -315,7 +315,6 @@ class Node:
 		self.playBoard(board)
 		self._getRoot().katago.key = self.getCurrentBoard().key
 		self._getCurrent().move = pla, i, j
-		self._ge
 		return self._getCurrent().board
 
 	def goToRoot(self, transmit=False):

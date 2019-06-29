@@ -571,7 +571,8 @@ def treatInput(event, board, kata, history, inputs):
 				i, j = lastCoord
 				history.setBoard(board, current=True) # save current board
 				try:
-					history.playMove(board, i, j, history.getTurn(), transmit=True, analyse=True)
+					turn = history.getTurn()
+					history.playMove(board, i, j, turn, transmit=True, analyse=True)
 					board = history.getCurrentBoard()
 					srender = True
 				except:
