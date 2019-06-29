@@ -73,7 +73,7 @@ class Node:
 
 	def setBoard(self, board, current=False):
 		"""Set the board.
-		- current - precise if we should do it on the current node
+		- current - precise if we should do it on the current node"""
 		if current:
 			self._getCurrent().board = board.copy()
 		else:
@@ -103,14 +103,17 @@ class Node:
 		return cur
 
 	def _getPrevious(self):
+		"""Return the parent of the current node."""
 		if not self._getCurrent().parent:
 			return self._getCurrent()
 		return self._getCurrent().parent
 
 	def _getCurrent(self):
+		"""Return the current node"""
 		return self.root.current
 
 	def _setCurrent(self, ptr):
+		"""Set the current node"""
 		self._getRoot().current = ptr
 
 	def getCurrentBoard(self):
@@ -118,6 +121,7 @@ class Node:
 		return self._getCurrent().board
 
 	def getLastMove(self):
+		"""Return the last move played - at current position"""
 		return self._getCurrent().move
 
 	def getPrevMove(self):
@@ -267,6 +271,9 @@ class Node:
 		return seqStdev
 
 	def getTurn(self, current=True):
+		"""Get which turn it is (Board.BLACK or Board.WHITE)
+		- current - if set to True, we return the turn on current position
+		            otherwise, we do it on local node."""
 		move = self.getLastMove() if current else self.getPrevMove()
 		if not move: return Board.BLACK
 		else:
