@@ -69,7 +69,7 @@ def HEAT(x):
 #
 
 # Maximum number of shown hints
-HINT_LIMIT = 10
+HINT_LIMIT = 33
 
 # SDL Renderer
 renderer = None
@@ -533,15 +533,22 @@ def treatInput(event, board, kata, history, inputs):
 
 		elif event.key.keysym.sym == SDLK_g:
 			txt = history.getSeqToCurrent()
-			myfile = open("test.log", "w")
+			myfile = open("test.log", "a+")
 			print(txt, file=myfile)
 			myfile.close()
 			print("Written description at test.log")
+			srender = False
 
 		elif event.key.keysym.sym == SDLK_l:
-			txt = input("Load move sq:")
-			history.fromSeqTxt(txt)
+			path = input("Path to moves data:")
+			history.loadFileSequences(path)
 
+		elif event.key.keysym.sym == SDLK_SPACE:
+			history.loadNextSeq()
+
+		elif event.key.keysym.sym == SDLK_BACKSPACE:
+			history.loadPrevSeq()
+			
 	## MOUSE MOTION - do not always render
 	elif event.type == SDL_MOUSEMOTION:
 		lastCoord = inputs.getCoordinates()

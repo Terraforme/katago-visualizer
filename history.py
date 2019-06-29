@@ -58,6 +58,8 @@ class Node:
 		self.children = []
 		self.board = None
 		self.move = None
+		self.loadedseq = []
+		self.loadId = 0
 		self.pv = []
 
 	def print(self):
@@ -156,6 +158,46 @@ class Node:
 		"""Return current score according to last analysis"""
 		return self._getCurrent().scoreMean()
 
+	def loadFileSequences(self, path):
+		"""Load a bunch of sequences from a file"""
+		try:
+			myfile = open(path, "r")
+			if not myfile:
+				raise Exception("File do not exists")
+			txt = myfile.read()
+			seqtxt = txt.split("\n")
+			root = self._getRoot()
+			root.loadedseq = []
+			for line in seqtxt:
+				if line == "": continue
+				root.loadedseq.append(line)
+			root.loadId = -1
+			root.loadNextSeq()
+		except:
+			print("Failed to open {}".format(path))
+
+	def loadNextSeq(self):
+		"""Load next element of the .loadedseq at the root"""
+		root = self._getRoot()
+		root.loadId += 1
+		if root.loadId < len(root.loadedseq):
+			root.fromSeqTxt(root.loadedseq[root.loadId], format="std")
+		else:
+			root.loadId -= 1
+			print("No more sequences")
+
+	def loadPrevSeq(self):
+		"""Load previous element of the .loadedseq at the root"""
+		root = self._getRoot()
+		root.loadId -= 1
+		if root.loadId < 0:
+			root.loadId = 0
+			print("No more sequences")
+		elif root.loadedseq == []:
+			print("No sequences at all")
+		else:
+			root.fromSeqTxt(root.loadedseq[root.loadId], format="std")
+
 	def extraInfoStr(self):
 		"""Return a string corresponding to the current information.
 		Format is such that it can be parsed using katago.parseLine()."""
@@ -188,7 +230,7 @@ class Node:
 		board = self._getCurrent().board
 		if txt == "": return None
 
-		txt = txt.split("#")
+		txt = txt.split("@")
 		extrainfos = txt[1]
 		print(extrainfos)
 		txt = txt[0].split(";")
@@ -205,6 +247,7 @@ class Node:
 				raise Exception("Please finish implementation of fromSeqTxt")
 
 		infos, heatInfos = parseLine(extrainfos)
+		heatInfos = - heatInfos # negate ! don't know why anymore -.-
 		self.updPV(infos)
 		self.getCurrentBoard().loadHeatFromArray(heatInfos)
 
@@ -235,7 +278,7 @@ class Node:
 				c = "B" if pla == Board.BLACK else "W"
 				res += "{}.{};".format(c, coordToStd(i, j))
 		
-		res += "#" + self.extraInfoStr()
+		res += "@" + self.extraInfoStr()
 		return res
 
 	def getScoreSeq(self, normalized=False):
@@ -285,7 +328,8 @@ class Node:
 		return self._getCurrent().pv
 
 	def getMoveInfo(self, i, j, ceil=10):
-		"""Return information (if some) on the current move"""
+		"""Return information (if some) on the current move
+		- ceil - ignored parameters"""
 		pvs = self.getPV()
 		if pvs == None: return None
 		for visits, winrate, scoreMean, scoreStDev, moves in pvs:
