@@ -84,8 +84,20 @@ class KataGo:
 	ANALYSIS_CMD = "kata-analyze interval {} ownership true"
 	ANALYSIS_DIR = "analysis"
 
-	def __init__(self, eventID, config=None, model=None):
-		
+	def __init__(self, eventID, config=None, model=None, turnoff=False):
+		"""
+		- eventID - SDL event generated when KataGo makes a new analysis
+		- config - optional, path to a configuration file
+		- model - optional, path to a model (.txt.gz)
+		- turnoff - optional. Is set to True, the KataGo is a dead end.
+		  use it you want to use the app with no KataGo subprocess."""
+		if turnoff:
+			print("Warning: KataGo set OFF")
+			self._ON = False
+			return None
+		else:
+			self._ON = True
+
 		if not config: config = KataGo.CONFIG
 		if not model: model = KataGo.STDMODEL
 
@@ -93,7 +105,7 @@ class KataGo:
 			KataGo.BIN, KataGo.STDMODEL, KataGo.CONFIG)
 		self.pid = subprocess.Popen(cmd.split(), stdin=subprocess.PIPE, 
 			stdout=subprocess.PIPE, stderr=subprocess.STDOUT, bufsize=1)
-		if not self.pid: # TODO: check the doc of subprocess.Popen
+		if not self.pid: 
 			raise Exception("Error when starting KataGo")
 
 		self.lastAnalyse = None
@@ -108,24 +120,26 @@ class KataGo:
 		self.thread.daemon = True
 		self.thread.start()
 
-	def sendCommand(self, cmd):
+	def _sendCommand(self, cmd):
 		"""Send a raw command to katago"""
-		cmd += "\n"
-		os.write(self.stdin, cmd.encode())
+		if not self._ON: pass
+		else:
+			cmd += "\n"
+			os.write(self.stdin, cmd.encode())
 
 	def setBoardsize(self, size):
 		"""Set the boardsize of KataGo"""
-		self.sendCommand("boardsize {}".format(size))
+		self._sendCommand("boardsize {}".format(size))
 
 	def setKomi(self, komi):
 		"""Set the komi of KataGo"""
-		self.sendCommand("komi {}".format(komi))
+		self._sendCommand("komi {}".format(komi))
 
 	def playStone(self, pla, txt):
 		"""play a stone on intersection corresponding to 'txt'"""
 		player = {Board.BLACK: "B", Board.WHITE: "W"}
 		cmd = "play {} {}".format(player[pla], txt)
-		self.sendCommand(cmd)
+		self._sendCommand(cmd)
 
 	def playCoord(self, i, j, pla, size=19):
 		"""Play a stone at coordinates (i, j)"""
@@ -134,32 +148,31 @@ class KataGo:
 
 	def undo(self):
 		"""Undo the previous move"""
-		self.sendCommand("undo")
+		self._sendCommand("undo")
 
 	def clearBoard(self):
 		"""Clear the board of KataGo"""
-		self.sendCommand("clear_board")
+		self._sendCommand("clear_board")
 
 	def clearCache(self):
 		"""Clear KataGo's cache"""
-		self.sendCommand("clear-cache")
+		self._sendCommand("clear-cache")
 
 	def stop(self):
 		"""Stop what KataGo is doing.
 
 		Use it when you want to stop an analysis currently running."""
-		self.sendCommand("stop")
+		self._sendCommand("stop")
 
 	def close(self):
 		"""Close KataGo"""
-		self.sendCommand("quit")
+		self._sendCommand("quit")
 
 	def playSeq(self, moves, clear=False):
 		"""Play a sequence of moves"""
 		if clear: self.clear()
 		for pla, i, j in moves:
 			self.playCoord(i, j, pla)
-
 
 	# More serious commands
 
@@ -168,50 +181,13 @@ class KataGo:
 		at which frequency katago's send analysis informations."""
 		if not ttime: ttime = KataGo.THINKING_TIME
 		cmd = KataGo.ANALYSIS_CMD.format(ttime)
-		self.sendCommand(cmd)
+		self._sendCommand(cmd)
 
 	def waitOutput(self, csleep=10):
 		"""Wait for KataGo to output something. If there is no input at
 		the current moment, sleep for csleep centi-seconds. """
 		line = self.queue.get()
 		return line.decode()
-
-	def pollOutput(self):
-		"""Poll the last output from katago"""
-		try: 
-			line = self.queue.get_nowait() # or .get(timeout=...)
-		except Empty:
-			return None
-		else:
-			return line.decode()
-
-	def waitAnalysis(self, stop=True):
-		"""Wait for an output of the analysis.
-		Warning - will deadlock if user did not start any analysis.
-
-		Return (heat informations, informations) in a tuple."""
-		while True:
-			line = self.waitOutput()
-			tmp = parseLine(line)
-			if not tmp: continue
-			break
-		return tmp
-
-	def getAnalysis(self, stop=False):
-		"""Get the last analysis from katago. If there are no such analysis,
-		return empty analysis data [], "" """
-		infos, heatInfos = [], ""
-		while True:
-			# Get last line - if there are no line, stop and return current 
-			# infos and heatInfos
-			line = self.pollOutput()
-			if not line: 
-				return infos, heatInfos
-
-			# Parse last line - if it does not work, continue 
-			tmp = parseLine(line)
-			if not tmp: continue
-			infos, heatInfos = tmp
 			
 
 	

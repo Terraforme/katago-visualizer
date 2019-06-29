@@ -455,12 +455,12 @@ def render(board, history, coord=None):
 ## Init board, katago and history
 # SDL_KATAGO - SDL event corresponding to KataGo's analysis
 # path - optional parameter to import a sgf file
-def init(SDL_KATAGO, path=None):
+def init(SDL_KATAGO, path=None, skatago=True):
 
 	## Standard
 	if not path:
 		board = Board(size=19)
-		kata = KataGo(SDL_KATAGO)
+		kata = KataGo(SDL_KATAGO, turnoff=not skatago)
 		history = Node(kata)
 		history._getRoot().setBoard(board, current=False)
 		kata.setBoardsize(19)
@@ -472,7 +472,7 @@ def init(SDL_KATAGO, path=None):
 		gdata, setup, moves, rules = sgffiles.load_sgf_moves(path)
 
 		board = Board(size=gdata.size)
-		kata = KataGo(SDL_KATAGO)
+		kata = KataGo(SDL_KATAGO, turnoff=not SDL_KATAGO)
 		history = Node(kata)
 		history._setCurrentBoard(board)
 		kata.setBoardsize(gdata.size)
@@ -624,9 +624,9 @@ def treatInput(event, board, kata, history, inputs):
 # Main function
 # run the katago-analyzer app.
 
-def run():
+def run(sgf, skatago):
 
-	path = sys.argv[1] if len(sys.argv) > 1 else None
+	path = sgf
 
 	global font
 	global tinyfont
@@ -649,7 +649,7 @@ def run():
 	SDL_KATAGO = SDL_RegisterEvents(1)
 
 	# Initialise board & katago & inputs
-	board, kata, history = init(SDL_KATAGO, path)
+	board, kata, history = init(SDL_KATAGO, path, skatago)
 	inputs = Inputs()
 
 	event = SDL_Event()	
