@@ -4,6 +4,7 @@ import sgffiles
 from katago import KataGo
 from board import Board, coordToStd
 from history import Node
+import parser
 from sdl2 import *
 from sdl2.sdlttf import *
 import sdl2.sdlgfx as gfx
@@ -75,6 +76,7 @@ HINT_LIMIT = 33
 renderer = None
 # Font for rendering, loaded from a TTF.
 font = None
+smallfont = None
 tinyfont = None
 # SDL event for KataGO
 SDL_KATAGO = None
@@ -273,14 +275,17 @@ def drawScoreList(scores):
 # Draw a sequence of moves
 # - moves - ordered coordinates list
 # - pla - player playing first in the sequence
-def draw_moves(moves, pla, limit=25):
+def draw_moves(moves, pla, limit=99):
 	getowner = lambda c: "black" if c == Board.BLACK else "white"
 	getcolor = lambda c: WHITE if c == Board.BLACK else BLACK 
 	for i, (col, row) in enumerate(moves):
 		if i >= limit: break
 		col, row = col + 1, row + 1
 		stone(*inter(row, col), getowner(pla))
-		text(*inter(row, col), str(i+1), color=getcolor(pla))
+		if i < 9:
+			text(*inter(row, col), str(i+1), color=getcolor(pla))
+		else:
+			text(*inter(row, col), str(i+1), color=getcolor(pla), tfont=smallfont)
 		pla = Board.getOpponent(pla)
 
 # Mark dead stones. Stones are marked according to the heat map.
@@ -624,11 +629,28 @@ def treatInput(event, board, kata, history, inputs):
 # Main function
 # run the katago-analyzer app.
 
-def run(sgf, skatago):
+def run():
 
-	path = sgf
+	args = parser.parse_args()
+
+	path = args.sgffile
+	skatago = args.skatago
+	silent = args.silent
+
+	if silent:
+		global SHOW_BLACK_HINTS
+		global SHOW_WHITE_HINTS
+		global SHOW_HEAT_MAP
+		global SHOW_VARIATION
+		global SHOW_DEAD_STONES
+		SHOW_BLACK_HINTS = False
+		SHOW_WHITE_HINTS = False
+		SHOW_HEAT_MAP = False
+		SHOW_VARIATION = False
+		SHOW_DEAD_STONES = False
 
 	global font
+	global smallfont
 	global tinyfont
 	global renderer
 	global SDL_KATAGO
@@ -641,6 +663,7 @@ def run(sgf, skatago):
 		WIDTH, HEIGHT, SDL_WINDOW_SHOWN)
 	renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED)
 	font = TTF_OpenFont(b"DejaVuSans.ttf", 13)
+	smallfont = TTF_OpenFont(b"DejaVuSans.ttf", 10)
 	tinyfont = TTF_OpenFont(b"DejaVuSans.ttf", 7)
 
 	SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, b'1')
