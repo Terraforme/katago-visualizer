@@ -477,7 +477,7 @@ def init(SDL_KATAGO, path=None, skatago=True):
 		gdata, setup, moves, rules = sgffiles.load_sgf_moves(path)
 
 		board = Board(size=gdata.size)
-		kata = KataGo(SDL_KATAGO, turnoff=not SDL_KATAGO)
+		kata = KataGo(SDL_KATAGO, turnoff=not skatago)
 		history = Node(kata)
 		history._setCurrentBoard(board)
 		kata.setBoardsize(gdata.size)

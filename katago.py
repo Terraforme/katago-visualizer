@@ -76,10 +76,9 @@ class KataGo:
 	Below are values to be modified according to KataGo's directory
 	on your computer."""
 
-	BIN = "../KataGo/cpp/main"
-	#STDMODEL = "../KataGo/cpp/models/g103-b6c96-s103408384-d26419149.txt.gz"
-	STDMODEL = "../KataGo/cpp/models/g104-b6c96-s97778688-d23397744/model.txt.gz"
-	CONFIG = "gtp_analysis.cfg"
+	BIN = None
+	STDMODEL = None
+	CONFIG = None
 	THINKING_TIME = 1000 # in centiseconds
 	ANALYSIS_CMD = "kata-analyze interval {} ownership true"
 	ANALYSIS_DIR = "analysis"

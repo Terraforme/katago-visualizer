@@ -10,7 +10,7 @@ parser.add_argument("--katago-off", dest="skatago", action="store_false",
 parser.add_argument("--silent", dest="silent", action="store_true",
 	help="hide all default analysis")
 parser.set_defaults(skatago=True)
-parser.set_defaults(silent=True)
+parser.set_defaults(silent=False)
 
 def parse_args():
 	return parser.parse_args()

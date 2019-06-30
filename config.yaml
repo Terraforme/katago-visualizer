@@ -1,0 +1,3 @@
+KataGo.BIN: ../KataGo/cpp/main
+KataGo.CONFIG: gtp_analysis.cfg
+KataGo.STDMODEL: ../KataGo/cpp/models/g104-b6c96-s97778688-d23397744/model.txt.gz
