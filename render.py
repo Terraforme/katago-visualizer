@@ -1,15 +1,19 @@
 import sys
 import ctypes
-import sgffiles
+import time
+
+from sdl2 import *
+from sdl2.sdlttf import *
+from math import cos, sin, pi
+import sdl2.sdlgfx as gfx
+
 from katago import KataGo
 from board import Board, coordToStd
 from history import Node
 import parser
-from sdl2 import *
-from sdl2.sdlttf import *
-import sdl2.sdlgfx as gfx
-from math import cos, sin, pi
-import time
+import sgffiles
+
+DEBUG = False
 
 #
 #  Board layout parameters
@@ -345,7 +349,7 @@ def hint_info(x, y, visits, score):
 #  Hint rendering function
 #
 
-def render_hints(pv, turn, coord=None):
+def render_hints(pv, turn, board, coord=None):
 
 	if turn == Board.BLACK and not SHOW_BLACK_HINTS:
 		return None
@@ -362,7 +366,8 @@ def render_hints(pv, turn, coord=None):
 
 	drawnSeq = False
 	for _, _, _, _, moves in pv:
-		if moves[0] == coord:
+		i, j = moves[0]
+		if moves[0] == coord and board.stones[i][j] == Board.EMPTY:
 			if SHOW_VARIATION: 
 				# Show the whole sequence only if 'show_variation' is on
 				draw_moves(moves, turn)
@@ -377,6 +382,7 @@ def render_hints(pv, turn, coord=None):
 	for i, (visits, winrate, scoreMean, scoreStDev, moves) in enumerate(pv):
 		if i >= HINT_LIMIT: break
 		col, row = moves[0]
+		if board.stones[col][row] != Board.EMPTY: continue
 		hint_stone(*inter(row+1, col+1), intensity=visits/maxVisits, isFirst=isFirst)
 		if SHOW_BLACK_HINTS and SHOW_WHITE_HINTS:
 			hint_info(*inter(row+1, col+1), visits, scoreMean)
@@ -451,7 +457,7 @@ def render(board, history, coord=None):
 
 	## Rendering Hints & variations & score diagram
 	if SHOW_DEAD_STONES: draw_dead_stones(board)
-	render_hints(pv, turn=history.getTurn(), coord=coord)
+	render_hints(pv, board=board, turn=history.getTurn(), coord=coord)
 	if SHOW_WHITE_HINTS and SHOW_BLACK_HINTS: 
 		drawScoreList(history.getScoreSeq())
 	
@@ -521,14 +527,17 @@ def treatInput(event, board, kata, history, inputs):
 
 	srun, srender = True, False
 	if event.type == SDL_QUIT:
-			srun = False
+		if DEBUG: print("EVENT: quit")
+		srun = False
 
 	## KATAGO
 	elif event.type == SDL_KATAGO:
 		if kata.lastAnalyse:
+			if DEBUG: print("Event: katago")
 			infos, heatInfos = kata.lastAnalyse
+			# print("KataGo!")
 			# skip if event key is out of date - FIXME not the best solution
-			if kata.key == kata.lastEventKey: 
+			if True or kata.key == kata.lastEventKey: 
 				heatInfos = Board.getSign(history.getTurn(current=True)) * heatInfos
 				history.updPV(infos)
 				board.loadHeatFromArray(heatInfos)
@@ -536,6 +545,7 @@ def treatInput(event, board, kata, history, inputs):
 
 	## KEYBOARD - always render
 	elif event.type == SDL_KEYDOWN:
+		if DEBUG: print("EVENT: KEY DOWN")
 		srender = True
 		if event.key.keysym.sym == SDLK_RIGHT:
 			history.setBoard(board, current=True) # save current board
@@ -570,7 +580,7 @@ def treatInput(event, board, kata, history, inputs):
 					print("Written description at {}".format(path))
 					srender = False
 				except:
-					print("Error wile trying to write informations in {}".format(path))
+					if DEBUG: print("Error wile trying to write informations in {}".format(path))
 			else:
 				print("Aborted.")
 
@@ -583,6 +593,9 @@ def treatInput(event, board, kata, history, inputs):
 
 		elif event.key.keysym.sym == SDLK_BACKSPACE:
 			history.loadPrevSeq()
+
+		else: # If the key is not supported, do not render
+			srender = False
 			
 	## MOUSE MOTION - do not always render
 	elif event.type == SDL_MOUSEMOTION:
@@ -602,11 +615,13 @@ def treatInput(event, board, kata, history, inputs):
 		if coord == None: coord = -2, -2
 		lastmoveInfo = history.getMoveInfo(*lastCoord)
 		moveInfo = history.getMoveInfo(*coord)
-		if lastmoveInfo != None or moveInfo != None:
+		if (lastmoveInfo != None or moveInfo != None) and lastCoord != coord:
 			srender = True
+			if DEBUG: print("EVENT: Taking account of motion")
 
 	## MOUSE BUTTONS 
 	elif event.type == SDL_MOUSEBUTTONDOWN:
+		if DEBUG: print("EVENT: mouse button")
 		lastCoord = inputs.getCoordinates()
 		if event.button.button == SDL_BUTTON_LEFT:
 			if lastCoord != None:
@@ -677,13 +692,19 @@ def run():
 
 	event = SDL_Event()	
 	render(board, history)
+	t = None
 	while True:
+		if t != None:
+			dt = time.time() - t
+			fps = 1 / dt
+			if DEBUG: print("FPS:", fps)
 		# Event loop
-		
 		SDL_WaitEvent(event)
+		t = time.time()
 		srun, srender = treatInput(event, board, kata, history, inputs)
 		if not srun: break
 		if srender:
+			if DEBUG: print("########### Rendering !")
 			board = history.getCurrentBoard()
 			render(board, history, inputs.getCoordinates())
 

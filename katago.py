@@ -11,6 +11,7 @@ def parseLine(line):
 	"""Load informations from an extracted line. Return True if the line
 	was valid, and False otherwise."""
 	#print(line)
+	t = time.time()
 	txt = line.split()
 	i = 0
 	infos = []
@@ -43,15 +44,15 @@ def parseLine(line):
 			infos.append((visits, winrate, scoreMean, scoreStDev, pv))			 
 		
 		if tok == "ownership":
+			i += 1 # skip the 'ownership' token
 			correct = True
 			break
 		i += 1
 	if correct:
-		if txt[i] == "ownership":
-			txt = txt[i+1:]
-		else :
-			txt = txt[i:]
-		heatInfos = np.array([float(tok) for tok in txt])
+		heatInfos = np.zeros(361)
+		for j in range(361):
+			heatInfos[j] = float(txt[i+j])
+		dt = time.time() - t
 		return infos, heatInfos
 	return None
 
