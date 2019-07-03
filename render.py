@@ -78,6 +78,12 @@ HINT_LIMIT = 33
 
 # SDL Renderer
 renderer = None
+
+# Texture for black stones
+tblackstone = None 
+# Texture for white stones
+twhitestone = None
+
 # Font for rendering, loaded from a TTF.
 font = None
 smallfont = None
@@ -216,7 +222,22 @@ def triangle(cx, cy, radius, color):
 	line(cx - rcospi, cy + rsinpi, cx, cy - radius, color)
 
 # Draws a stone. The owner can be either "black" or "white".
-def stone(x, y, owner):
+# - param - mode is "texture" or "draw". If to "texture", use tblackstone
+#   and twhitestone to draw the stone. Otherwise, draw directly the stone.
+def stone(x, y, owner, mode="texture"):
+
+	if mode == "texture":
+		if owner == "black" and tblackstone != None:
+			w, h = 2*STONE_RADIUS, 2*STONE_RADIUS
+			x, y = x - w//2, y - w//2
+			SDL_RenderCopy(renderer, tblackstone, None, SDL_Rect(x, y, w+1, h+1))
+			return None
+		if owner == "white" and twhitestone != None:
+			w, h = 2*STONE_RADIUS, 2*STONE_RADIUS
+			x, y = x - w//2, y - w//2
+			SDL_RenderCopy(renderer, twhitestone, None, SDL_Rect(x, y, w+1, h+1))
+			return None	
+
 	main, border = (BLACK, WHITE) if owner == "black" else (WHITE, BLACK)
 	r = STONE_RADIUS
 
@@ -227,6 +248,43 @@ def stone(x, y, owner):
 	gfx.aacircleRGBA(renderer, x, y, r-2, *main)
 	gfx.aacircleRGBA(renderer, x, y, r-1, *border)
 	gfx.aacircleRGBA(renderer, x, y, r, *border)
+
+# Create the texture for a black stone
+# - param - color is either "black" or "white" to accordingly initialize
+# tblackstone and twhitestone.
+def createStoneTexture(color="black"):
+	
+	if color == "black":
+		global tblackstone
+		tblackstone = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888,
+			SDL_TEXTUREACCESS_TARGET, STONE_RADIUS*2+1, STONE_RADIUS*2+1)
+		SDL_SetRenderTarget(renderer, tblackstone)
+		width, height = 2 * STONE_RADIUS, 2 * STONE_RADIUS
+		SDL_SetRenderDrawColor(renderer, *(255, 255, 255, 255))
+		SDL_RenderFillRect(renderer, SDL_Rect(0, 0, width+1, height+1))
+		stone(width//2, width//2, "black", mode="draw")
+		SDL_SetRenderTarget(renderer, None)
+	
+	if color == "white":
+		global twhitestone
+		twhitestone = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888,
+			SDL_TEXTUREACCESS_TARGET, STONE_RADIUS*2+1, STONE_RADIUS*2+1)
+		SDL_SetRenderTarget(renderer, twhitestone)
+		width, height = 2 * STONE_RADIUS, 2 * STONE_RADIUS
+		SDL_SetRenderDrawColor(renderer, *(255, 255, 255, 255))
+		SDL_RenderFillRect(renderer, SDL_Rect(0, 0, width+1, height+1))
+		stone(width//2, height//2, "white", mode="draw")
+		SDL_SetRenderTarget(renderer, None)
+
+def destroyStoneTexture(color="black"):
+	
+	if color == "black":
+		global tblackstone
+		SDL_DestroyTexture(tblackstone)
+	if color == "white":
+		global twhitestone
+		SDL_DestroyTexture(twhitestone)
+
 
 def circ_mark(x, y, owner):
 	main, border = (BLACK, WHITE) if owner == "black" else (WHITE, BLACK)
@@ -285,7 +343,7 @@ def draw_moves(moves, pla, limit=99):
 	for i, (col, row) in enumerate(moves):
 		if i >= limit: break
 		col, row = col + 1, row + 1
-		stone(*inter(row, col), getowner(pla))
+		stone(*inter(row, col), getowner(pla), mode="texture")
 		if i < 9:
 			text(*inter(row, col), str(i+1), color=getcolor(pla))
 		else:
@@ -445,9 +503,9 @@ def render(board, history, coord=None):
 			st = board.stones[col - 1][row - 1]
 
 			if st == Board.BLACK:
-				stone(*inter(row, col), "black")
+				stone(*inter(row, col), "black", mode="texture")
 			elif st == Board.WHITE:
-				stone(*inter(row, col), "white")
+				stone(*inter(row, col), "white", mode="texture")
 
 	## Mark last move
 	if lmove:
@@ -680,6 +738,8 @@ def run():
 	font = TTF_OpenFont(b"DejaVuSans.ttf", 13)
 	smallfont = TTF_OpenFont(b"DejaVuSans.ttf", 10)
 	tinyfont = TTF_OpenFont(b"DejaVuSans.ttf", 7)
+	createStoneTexture("black")
+	createStoneTexture("white")
 
 	SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, b'1')
 
@@ -697,7 +757,7 @@ def run():
 		if t != None:
 			dt = time.time() - t
 			fps = 1 / dt
-			if DEBUG: print("FPS:", fps)
+			print("FPS:", fps)
 		# Event loop
 		SDL_WaitEvent(event)
 		t = time.time()
@@ -713,4 +773,6 @@ def run():
 	print("Katago closed, closing everything else")
 	SDL_DestroyRenderer(renderer)
 	SDL_DestroyWindow(window)
+	destroyStoneTexture("black")
+	destroyStoneTexture("white")
 	SDL_Quit()
