@@ -258,29 +258,32 @@ def stone(x, y, owner, mode="texture"):
 # Create the texture for a black stone
 # - param - color is either "black" or "white" to accordingly initialize
 # tblackstone and twhitestone.
-def createStoneTexture(color="black"):
-	
+def createStoneTexture(color):
+
 	if color == "black":
 		global tblackstone
 		tblackstone = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888,
 			SDL_TEXTUREACCESS_TARGET, STONE_RADIUS*2+1, STONE_RADIUS*2+1)
 		SDL_SetRenderTarget(renderer, tblackstone)
-		width, height = 2 * STONE_RADIUS, 2 * STONE_RADIUS
+		SDL_SetTextureBlendMode(tblackstone, SDL_BLENDMODE_BLEND)
 		SDL_SetRenderDrawColor(renderer, *(255, 255, 255, 0))
-		SDL_RenderFillRect(renderer, SDL_Rect(0, 0, width+1, height+1))
-		stone(width//2, width//2, "black", mode="draw")
+		SDL_RenderFillRect(renderer, None)
+		stone(STONE_RADIUS, STONE_RADIUS, "black", mode="draw")
 		SDL_SetRenderTarget(renderer, None)
 	
 	if color == "white":
 		global twhitestone
+		SDL_SetRenderDrawColor(renderer, *(255, 255, 255, 0))
 		twhitestone = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888,
 			SDL_TEXTUREACCESS_TARGET, STONE_RADIUS*2+1, STONE_RADIUS*2+1)
 		SDL_SetRenderTarget(renderer, twhitestone)
-		width, height = 2 * STONE_RADIUS, 2 * STONE_RADIUS
+		SDL_SetTextureBlendMode(twhitestone, SDL_BLENDMODE_BLEND)
 		SDL_SetRenderDrawColor(renderer, *(255, 255, 255, 0))
-		SDL_RenderFillRect(renderer, SDL_Rect(0, 0, width+1, height+1))
-		stone(width//2, height//2, "white", mode="draw")
+		SDL_RenderFillRect(renderer, None)
+		stone(STONE_RADIUS, STONE_RADIUS, "white", mode="draw")
 		SDL_SetRenderTarget(renderer, None)
+
+	# SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND)
 
 def destroyStoneTexture(color="black"):
 	
