@@ -62,9 +62,10 @@ def enqueue_output(out, katago):
 	for line in iter(out.readline, b''):
 		katago.updocount()
 		# print("Balance:", katago.ocount - katago.icount)
-		katago.lastEventKey = katago.key
+		# katago.lastEventKey = katago.key
 		katago.lastAnalyse = parseLine(line.decode())
-		if katago.lastAnalyse: # do not care if this is not relevant info
+		if katago.lastAnalyse and katago.uptodate(): 
+			# do not care if this is not relevant info
 			ev = SDL_Event()
 			ev.type = katago.eventID
 			SDL_PushEvent(ev)

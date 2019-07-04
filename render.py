@@ -600,13 +600,11 @@ def treatInput(event, board, kata, history, inputs):
 		if kata.lastAnalyse:
 			if DEBUG: print("Event: katago")
 			infos, heatInfos = kata.lastAnalyse
-			# print("KataGo!")
-			# skip if event key is out of date - FIXME not the best solution
-			if True or kata.key == kata.lastEventKey: 
-				heatInfos = Board.getSign(history.getTurn(current=True)) * heatInfos
-				history.updPV(infos)
-				board.loadHeatFromArray(heatInfos)
-				srender = True
+			
+			heatInfos = Board.getSign(history.getTurn(current=True)) * heatInfos
+			history.updPV(infos)
+			board.loadHeatFromArray(heatInfos)
+			srender = True
 
 			if args.play:
 				move = autoplay(history)
