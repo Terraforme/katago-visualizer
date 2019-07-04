@@ -323,9 +323,12 @@ class Node:
 			pla, i, j = move
 			return Board.getOpponent(pla)
 
-	def getPV(self):
+	def getPV(self, current=True):
 		"""Return current main variations"""
-		return self._getCurrent().pv
+		if current:
+			return self._getCurrent().pv
+		else:
+			return self.pv
 
 	def getMoveInfo(self, i, j, ceil=10):
 		"""Return information (if some) on the current move

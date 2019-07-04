@@ -73,6 +73,12 @@ def HEAT(x):
 #  Global data
 #
 
+# Parsing informations
+args = None
+
+# Last time katago played
+ltime = None
+
 # Maximum number of shown hints
 HINT_LIMIT = 33
 
@@ -582,6 +588,7 @@ def treatInput(event, board, kata, history, inputs):
 	global SHOW_WHITE_HINTS
 	global SHOW_HEAT_MAP
 	global SHOW_DEAD_STONES
+	global ltime
 
 	srun, srender = True, False
 	if event.type == SDL_QUIT:
@@ -601,6 +608,18 @@ def treatInput(event, board, kata, history, inputs):
 				board.loadHeatFromArray(heatInfos)
 				srender = True
 
+			if args.play:
+				move = autoplay(history)
+				if move != None:
+					i, j = move
+					history.setBoard(board, current=True) # save current board
+					turn = history.getTurn()
+					history.playMove(board, i, j, turn, transmit=True, analyse=True)
+					board = history.getCurrentBoard()
+					srender = True
+					ltime = time.time()
+				
+
 	## KEYBOARD - always render
 	elif event.type == SDL_KEYDOWN:
 		if DEBUG: print("EVENT: KEY DOWN")
@@ -610,10 +629,12 @@ def treatInput(event, board, kata, history, inputs):
 			board = history.goForward(transmit=True, analyse=True)
 			if board == None:
 				board = history.getCurrentBoard()
+			ltime = time.time() + 1e6
 
 		elif event.key.keysym.sym == SDLK_LEFT:
 			history.setBoard(board, current=True) # save current board
 			board = history.undo(transmit=True, analyse=True)
+			ltime = time.time() + 1e6
 
 		elif event.key.keysym.sym == SDLK_w:
 			SHOW_WHITE_HINTS = not SHOW_WHITE_HINTS
@@ -690,25 +711,60 @@ def treatInput(event, board, kata, history, inputs):
 					history.playMove(board, i, j, turn, transmit=True, analyse=True)
 					board = history.getCurrentBoard()
 					srender = True
+					ltime = time.time()
 				except:
 					print("This move is illegal")
 		elif event.button.button == SDL_BUTTON_RIGHT:
 			srender = True
 			history.setBoard(board, current=True) # save current board
 			board = history.undo(transmit=True, analyse=True)
+			ltime = time.time() + 1e6
 
 	return srun, srender
+
+
+def autoplay(history):
+	"""
+	If auto is on, return the best move according the history after a thinking
+	time kttime. If KataGo is still supposed to thinking, return None.
+	- param - auto
+	"""
+
+	auto = args.play
+	kttime = args.kttime
+
+	if ltime == None: return None
+
+	kturn = Board.BLACK if auto == "black" else Board.WHITE
+	cturn = history.getTurn(current=True)
+	if kturn != cturn: return None
+
+	t = time.time()
+	if t - ltime < kttime: return None
+
+	pv = history.getPV(current=True)
+	visits, winrate, scoreMean, scoreStDev, moves = pv[0]
+	bestmove = moves[0]
+	return bestmove 
 
 # Main function
 # run the katago-analyzer app.
 
 def run():
 
+	global args
 	args = parser.parse_args()
 
 	path = args.sgffile
 	skatago = args.skatago
 	silent = args.silent
+	auto = args.play
+	kttime = args.kttime
+
+	if auto:
+		print("KataGo playing {} thinking {} seconds".format(auto, kttime))
+		global ltime
+		ltime = time.time()
 
 	if silent:
 		global SHOW_BLACK_HINTS
@@ -757,7 +813,7 @@ def run():
 		if t != None:
 			dt = time.time() - t
 			fps = 1 / dt
-			print("FPS:", fps)
+			# print("FPS:", fps)
 		# Event loop
 		SDL_WaitEvent(event)
 		t = time.time()
