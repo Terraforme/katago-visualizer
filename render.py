@@ -260,7 +260,7 @@ def createStoneTexture(color="black"):
 			SDL_TEXTUREACCESS_TARGET, STONE_RADIUS*2+1, STONE_RADIUS*2+1)
 		SDL_SetRenderTarget(renderer, tblackstone)
 		width, height = 2 * STONE_RADIUS, 2 * STONE_RADIUS
-		SDL_SetRenderDrawColor(renderer, *(255, 255, 255, 255))
+		SDL_SetRenderDrawColor(renderer, *(255, 255, 255, 0))
 		SDL_RenderFillRect(renderer, SDL_Rect(0, 0, width+1, height+1))
 		stone(width//2, width//2, "black", mode="draw")
 		SDL_SetRenderTarget(renderer, None)
@@ -271,7 +271,7 @@ def createStoneTexture(color="black"):
 			SDL_TEXTUREACCESS_TARGET, STONE_RADIUS*2+1, STONE_RADIUS*2+1)
 		SDL_SetRenderTarget(renderer, twhitestone)
 		width, height = 2 * STONE_RADIUS, 2 * STONE_RADIUS
-		SDL_SetRenderDrawColor(renderer, *(255, 255, 255, 255))
+		SDL_SetRenderDrawColor(renderer, *(255, 255, 255, 0))
 		SDL_RenderFillRect(renderer, SDL_Rect(0, 0, width+1, height+1))
 		stone(width//2, height//2, "white", mode="draw")
 		SDL_SetRenderTarget(renderer, None)

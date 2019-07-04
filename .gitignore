@@ -1,4 +1,5 @@
 __pycache__
 analysis/
+sgf/
 gtp.log
 *.log
