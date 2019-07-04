@@ -369,7 +369,7 @@ class Node:
 			if transmit:
 				self._getRoot().katago.stop()
 				self._getRoot().katago.playCoord(i, j, pla)
-				if analyse: self._getRoot().katago.analyse(ttime)
+				# if analyse: self._getRoot().katago.analyse(ttime)
 				self._getRoot().katago.key = self.getCurrentBoard().key
 			return self.getCurrentBoard()
 
@@ -381,7 +381,7 @@ class Node:
 			if transmit: 
 				self._getRoot().katago.stop()
 				self._getRoot().katago.undo()
-				if analyse: self._getRoot().katago.analyse(ttime)
+				# if analyse: self._getRoot().katago.analyse(ttime)
 				self._getRoot().katago.key = self.getCurrentBoard().key
 			return self.getCurrentBoard()
 		else:
@@ -403,7 +403,7 @@ class Node:
 		if transmit: 
 			self._getRoot().katago.stop()
 			self._getRoot().katago.playCoord(i, j, pla)
-			if analyse: self._getRoot().katago.analyse(ttime=ttime)
+			# if analyse: self._getRoot().katago.analyse(ttime=ttime)
 		self.playBoard(board)
 		self._getRoot().katago.key = self.getCurrentBoard().key
 		self._getCurrent().move = pla, i, j

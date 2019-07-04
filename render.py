@@ -569,9 +569,6 @@ def init(SDL_KATAGO, path=None, skatago=True):
 		board = history.getCurrentBoard()
 		print("{} loaded successfully.".format(path))
 
-	# Starting KataGo's analysis
-	kata.analyse(ttime=100)
-
 	return board, kata, history
 
 # Treat an input

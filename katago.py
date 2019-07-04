@@ -60,12 +60,22 @@ def parseLine(line):
 # https://stackoverflow.com/questions/375427/non-blocking-read-on-a-subprocess-pipe-in-python
 def enqueue_output(out, katago):
 	for line in iter(out.readline, b''):
+		katago.updocount()
+		# print("Balance:", katago.ocount - katago.icount)
 		katago.lastEventKey = katago.key
 		katago.lastAnalyse = parseLine(line.decode())
 		if katago.lastAnalyse: # do not care if this is not relevant info
 			ev = SDL_Event()
 			ev.type = katago.eventID
 			SDL_PushEvent(ev)
+
+		# Automatic analyze
+		elif katago.isON() and not katago.isSearching() and katago.uptodate(): 
+			# If katago.lastAnalyse is False, it means that KataGo is stopped
+			# If moreover, KataGo is ON, we start the analysis.
+			ttime = 100 # centiseconds
+			katago.analyse(ttime)
+
 	out.close()
 
 class KataGo:
@@ -110,6 +120,15 @@ class KataGo:
 
 		self.lastAnalyse = None
 		self.eventID = eventID
+		
+		# input count - number of sent commands
+		self.icount = 0
+		# output count - number of outputs (counting lines)
+		# Waiting 3 lines at launch so initialized to -3
+		self.ocount = -3 
+		# Searching state (boolean)
+		self.searching = False
+
 		self.key = 0
 		self.lastEventKey = 0 # FIXME: this is bad
 
@@ -120,12 +139,45 @@ class KataGo:
 		self.thread.daemon = True
 		self.thread.start()
 
+	def isON(self):
+		"""
+		Return True if KataGo is ON (automatic analysis)
+		"""
+		return self._ON
+
+	def isSearching(self):
+		"""
+		Return if the KataGo thread is analyzing or not
+		"""
+		return self.searching
+
+	def uptodate(self):
+		"""
+		Return True if KataGo is up to date with sent commands.
+		"""
+		return self.ocount == self.icount
+
+	def updocount(self):
+		"""
+		Update output count.
+		Cap it to the input count.
+		"""
+		if self.ocount < self.icount:
+			self.ocount += 1
+
 	def _sendCommand(self, cmd):
-		"""Send a raw command to katago"""
+		"""
+		Send a raw command to katago.
+
+		Increase input counter. As on each gtp command, KataGo is expected 
+		to ouput '=\n\n' we wait for 2 lines of ouput.
+		"""
 		if not self._ON: pass
 		else:
+			# print("Sending command:", cmd)
 			cmd += "\n"
 			os.write(self.stdin, cmd.encode())
+			self.icount += 2
 
 	def setBoardsize(self, size):
 		"""Set the boardsize of KataGo"""
@@ -162,6 +214,7 @@ class KataGo:
 		"""Stop what KataGo is doing.
 
 		Use it when you want to stop an analysis currently running."""
+		self.searching = False
 		self._sendCommand("stop")
 
 	def close(self):
@@ -181,13 +234,8 @@ class KataGo:
 		at which frequency katago's send analysis informations."""
 		if not ttime: ttime = KataGo.THINKING_TIME
 		cmd = KataGo.ANALYSIS_CMD.format(ttime)
+		self.searching = True
 		self._sendCommand(cmd)
-
-	def waitOutput(self, csleep=10):
-		"""Wait for KataGo to output something. If there is no input at
-		the current moment, sleep for csleep centi-seconds. """
-		line = self.queue.get()
-		return line.decode()
 			
 
 	
